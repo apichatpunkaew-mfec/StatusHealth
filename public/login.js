@@ -1,6 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 
-const state = { hasUsers: true, needsSetupKey: false };
+const state = { hasUsers: true };
 
 function safeNext() {
   const value = new URLSearchParams(location.search).get("next") || "/";
@@ -17,7 +17,6 @@ function errorMessage(data, fallback) {
   if (data?.detail) return data.detail;
   const messages = {
     INVALID_CREDENTIALS: "username หรือรหัสผ่านไม่ถูกต้อง",
-    INVALID_SETUP_KEY: "setup key ไม่ถูกต้อง",
     SETUP_CLOSED: "มีผู้ใช้แล้ว กรุณาเข้าสู่ระบบแทน",
     INVALID_INPUT: "ข้อมูลไม่ถูกต้อง",
     KV_BINDING_MISSING: "ยังไม่ได้ตั้งค่า KV ของแอป",
@@ -38,14 +37,12 @@ async function init() {
     }
 
     state.hasUsers = Boolean(data.hasUsers);
-    state.needsSetupKey = Boolean(data.needsSetupKey);
 
     if (!state.hasUsers) {
       $("#loginTitle").textContent = "สร้างผู้ดูแลระบบ";
-      $("#loginIntro").textContent = "ยังไม่มีผู้ใช้ กรอกข้อมูลเพื่อสร้าง admin คนแรก";
+      $("#loginIntro").textContent = "ยังไม่มีผู้ใช้ กรอก username และรหัสผ่านเพื่อสร้าง admin คนแรก";
       $("#loginSubmit").textContent = "สร้างผู้ดูแลระบบ";
       $("#setupDisplayNameRow").hidden = false;
-      $("#setupKeyRow").hidden = !state.needsSetupKey;
       $("#loginPassword").autocomplete = "new-password";
     }
   } catch (error) {
@@ -67,7 +64,6 @@ async function submit(event) {
   };
   if (!state.hasUsers) {
     payload.displayName = $("#setupDisplayName").value.trim();
-    payload.setupKey = $("#setupKey").value.trim();
   }
 
   try {

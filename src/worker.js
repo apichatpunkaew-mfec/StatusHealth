@@ -205,10 +205,6 @@ async function serveBootstrap(env, method) {
   return new Response(upstream.body, { status: 200, headers });
 }
 
-function getSetupKey(env) {
-  return String(env.AUTH_SETUP_KEY || env.HEALTH_TOKEN || "").trim();
-}
-
 async function authContext(request, env) {
   if (!env.HEALTH_KV) return { user: null, token: null, session: null };
   const token = parseCookies(request.headers.get("Cookie"))[SESSION_COOKIE];
@@ -317,7 +313,6 @@ async function handleAuthRoute(url, request, env) {
       return json({
         ok: true,
         hasUsers: index.length > 0,
-        needsSetupKey: Boolean(getSetupKey(env)),
         authenticated: Boolean(context.user),
         user: publicUser(context.user),
       });
@@ -327,10 +322,6 @@ async function handleAuthRoute(url, request, env) {
       const index = await getUserIndex(kv);
       if (index.length > 0) return failure(409, "SETUP_CLOSED");
       const body = await readJsonBody(request);
-      const setupKey = getSetupKey(env);
-      if (setupKey && !constantTimeEqual(String(body.setupKey ?? ""), setupKey)) {
-        return failure(401, "INVALID_SETUP_KEY");
-      }
       const record = await buildUserRecord(body, { role: "admin" });
       await saveNewUser(kv, record);
       const session = await createSession(kv, record);

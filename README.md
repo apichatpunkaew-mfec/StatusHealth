@@ -19,13 +19,13 @@ Browser     <--------------------  GET /api/devices  <-- Worker + Dashboard
 ## Login และผู้ใช้
 
 - ครั้งแรกให้เปิด `https://<worker-domain>/login` ระบบจะขึ้นฟอร์ม **สร้างผู้ดูแลระบบ**
-- ใส่ setup key เพื่อสร้าง admin คนแรก ค่าเริ่มต้นคือ secret `HEALTH_TOKEN` (หรือ `AUTH_SETUP_KEY` ถ้าตั้งแยกไว้) วิธีตั้ง secret ทำใน Cloudflare Dashboard ไม่ต้อง login Wrangler CLI
-- หลังจากมีผู้ใช้แล้ว ฟอร์มสร้าง admin จะปิด automatically ทุกคนต้อง login ด้วย username/รหัสผ่าน
+- กรอก username และรหัสผ่านเพื่อสร้าง admin คนแรกได้เลย **ไม่ต้องใส่ setup key**
+- หลังจากมีผู้ใช้แล้ว ฟอร์มสร้าง admin จะปิดอัตโนมัติ ทุกคนต้อง login ด้วย username/รหัสผ่าน
 - admin จะเห็นปุ่ม **จัดการผู้ใช้** มุมขวาบน สามารถสร้าง user ใหม่ เลือกสิทธิ์ `viewer` (ดูอย่างเดียว) หรือ `admin` (จัดการผู้ใช้ได้) รวมถึงเปิด/ปิดและลบผู้ใช้
 - session เก็บใน KV เป็น token สุ่ม และส่งกลับเป็น cookie แบบ `HttpOnly` + `Secure` + `SameSite=Lax` อายุ 8 ชั่วโมง
 - รหัสผ่านไม่ได้เก็บ plain text แต่เก็บเป็น PBKDF2-SHA256 hash พร้อม salt ใน KV
 
-> ถ้าต้องการแยก setup key ออกจาก agent token ให้ตั้ง secret `AUTH_SETUP_KEY` ใน Cloudflare Dashboard เพิ่มได้ ถ้าไม่ตั้ง ระบบจะใช้ `HEALTH_TOKEN` แทน
+> หมายเหตุ: ก่อนมีผู้ใช้คนแรก ใครที่เข้าถึง `/login` ก็สามารถสร้าง admin ได้ ควรเปิดสร้างทันทีหลัง deploy แล้วหลังจากนั้นฟอร์มจะปิดเอง
 
 ## เกณฑ์การให้สถานะ
 
@@ -90,13 +90,13 @@ send-health.bat
 
 กดปุ่ม **สร้าง Token** มุมขวาบน → กด **สุ่ม Token ใหม่** token จะถูกสุ่มด้วย `crypto.getRandomValues` ใน browser และมีรูปแบบ `ph_...` ระบบจะฝัง token ลงในคำสั่ง install/reinstall ให้ทันที
 
-ตั้ง secret **ครั้งเดียว** ผ่าน Cloudflare Dashboard (ไม่ต้อง login Wrangler CLI):
+ตั้ง secret **ครั้งเดียว** ผ่าน Cloudflare Dashboard (ไม่ต้องใช้ Wrangler CLI):
 
 1. เปิด https://dash.cloudflare.com
 2. เข้า **Workers & Pages → pc-health-dashboard → Settings → Variables**
 3. แก้/เพิ่ม secret ชื่อ `HEALTH_TOKEN` แล้ววาง token ที่คัดลอกมา บันทึกและรอ deploy สั้น ๆ
 
-dashboard ไม่มีระบบ login จึง**ไม่มี endpoint ที่เขียน secret แทนคุณ** และไม่เก็บ token ไว้ใน KV อัตโนมัติ ถ้าสร้าง token ใหม่ทุกเครื่องที่ติดตั้งอยู่ต้องรัน installer ใหม่ด้วย `-Force` และใส่ token ใหม่ ส่วน secret เก่าจะยังใช้งานได้จนกว่าคุณจะตั้งค่า secret ใหม่หรือลบออก
+dashboard มีระบบ login แต่**ไม่มี endpoint ที่เขียน secret แทนคุณ** และไม่เก็บ token ไว้ใน KV อัตโนมัติ ถ้าสร้าง token ใหม่ทุกเครื่องที่ติดตั้งอยู่ต้องรัน installer ใหม่ด้วย `-Force` และใส่ token ใหม่ ส่วน secret เก่าจะยังใช้งานได้จนกว่าคุณจะตั้งค่า secret ใหม่หรือลบออก
 
 เปิด dashboard แล้วกดปุ่ม **ติดตั้ง Agent** มุมขวาบน กด **คัดลอกคำสั่ง** แล้ววางใน PowerShell ที่เปิดแบบ **Run as Administrator** กด Enter คำสั่งที่คัดลอกหลังสุ่ม token จะมี `-Token` อยู่แล้ว:
 

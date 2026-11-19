@@ -1,3 +1,1 @@
 HEALTH_TOKEN=local-dev-token-change-me
-# ถ้าไม่ตั้ง AUTH_SETUP_KEY ระบบจะใช้ HEALTH_TOKEN เป็น setup key สำหรับสร้าง admin คนแรก
-# AUTH_SETUP_KEY=local-setup-key-change-me
