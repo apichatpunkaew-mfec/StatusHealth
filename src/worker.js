@@ -1,7 +1,9 @@
 import {
+  DEVICE_INDEX_KEY,
   DEVICE_KEY_PREFIX,
   PayloadError,
   SEVERITY,
+  addDeviceKey,
   buildDeviceRecord,
   constantTimeEqual,
   normalizePayload,
@@ -143,6 +145,13 @@ async function handleHealthPost(request, env, config) {
     metadata: { hostname: record.hostname, status: record.status },
   });
 
+  const storedIndex = await env.HEALTH_KV.get(DEVICE_INDEX_KEY, "json");
+  const currentIndex = Array.isArray(storedIndex) ? storedIndex : [];
+  const nextIndex = addDeviceKey(currentIndex, key);
+  if (nextIndex.length !== currentIndex.length) {
+    await env.HEALTH_KV.put(DEVICE_INDEX_KEY, JSON.stringify(nextIndex));
+  }
+
   return json(
     { ok: true, id: record.id, status: record.status, receivedAt: record.receivedAt },
     201,
@@ -150,19 +159,12 @@ async function handleHealthPost(request, env, config) {
 }
 
 async function listDevices(env, config) {
-  const keys = [];
-  let cursor = null;
-  let pages = 0;
-
-  do {
-    const options = { prefix: DEVICE_KEY_PREFIX, limit: 100 };
-    if (cursor) options.cursor = cursor;
-    const page = await env.HEALTH_KV.list(options);
-    keys.push(...page.keys.map((item) => item.name));
-    pages += 1;
-    cursor = page.list_complete ? null : page.cursor;
-  } while (cursor && pages < 10);
-
+  const storedIndex = await env.HEALTH_KV.get(DEVICE_INDEX_KEY, "json");
+  const keys = Array.isArray(storedIndex)
+    ? storedIndex.filter(
+        (key) => typeof key === "string" && key.startsWith(DEVICE_KEY_PREFIX),
+      )
+    : [];
   if (keys.length === 0) return [];
 
   const values = await env.HEALTH_KV.get(keys, "json");

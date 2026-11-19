@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   PayloadError,
+  addDeviceKey,
   appendHistory,
   buildDeviceRecord,
   constantTimeEqual,
@@ -110,4 +111,16 @@ test("constantTimeEqual compares values", () => {
   assert.equal(constantTimeEqual("token", "toker"), false);
   assert.equal(constantTimeEqual("token", "token-longer"), false);
   assert.equal(constantTimeEqual(null, "token"), false);
+});
+
+test("addDeviceKey keeps a unique, valid device index", () => {
+  assert.deepEqual(addDeviceKey(null, "device:PC-1"), ["device:PC-1"]);
+  assert.deepEqual(
+    addDeviceKey(["device:PC-1", "", null, "device:PC-2"], "device:PC-1"),
+    ["device:PC-1", "device:PC-2"],
+  );
+  assert.deepEqual(addDeviceKey(["device:PC-1"], "device:PC-2"), [
+    "device:PC-1",
+    "device:PC-2",
+  ]);
 });

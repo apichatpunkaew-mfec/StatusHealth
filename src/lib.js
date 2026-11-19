@@ -6,7 +6,15 @@ export class PayloadError extends Error {
 }
 
 export const DEVICE_KEY_PREFIX = "device:";
+export const DEVICE_INDEX_KEY = "devices:index";
 export const STATUSES = ["ok", "warning", "critical", "offline"];
+
+export function addDeviceKey(index, key) {
+  const keys = Array.isArray(index)
+    ? index.filter((item) => typeof item === "string" && item.length > 0)
+    : [];
+  return keys.includes(key) ? keys : [...keys, key];
+}
 export const SEVERITY = { ok: 0, offline: 1, warning: 2, critical: 3 };
 
 export const THRESHOLDS = {

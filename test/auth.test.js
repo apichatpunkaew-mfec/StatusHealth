@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   AuthError,
   PBKDF2_ITERATIONS,
+  SESSION_INDEX_PREFIX,
   SESSION_KEY_PREFIX,
   clearSessionCookie,
   createSession,
@@ -79,8 +80,9 @@ test("session cookie is HttpOnly, Secure and parseable", () => {
   assert.equal(parseCookies(`other=1; ${cookie}`).ph_session, "token-abc");
   assert.match(clearSessionCookie({ secure: true }), /Max-Age=0/);
 });
-test("deleteSessionsForUser revokes only that user's sessions", async () => {
+test("deleteSessionsForUser revokes only that user's sessions without KV.list", async () => {
   const store = new Map();
+  let listCalls = 0;
   const kv = {
     put: async (key, value) => store.set(key, value),
     get: async (key, format) => {
@@ -89,17 +91,23 @@ test("deleteSessionsForUser revokes only that user's sessions", async () => {
       return format === "json" ? JSON.parse(value) : value;
     },
     delete: async (key) => store.delete(key),
-    list: async ({ prefix = "" } = {}) => ({
-      keys: [...store.keys()].filter((key) => key.startsWith(prefix)).map((name) => ({ name })),
-      list_complete: true,
-      cursor: undefined,
-    }),
+    list: async () => {
+      listCalls += 1;
+      throw new Error("list() must not be used");
+    },
   };
 
   await createSession(kv, { id: "u1", username: "admin01", displayName: "Admin", role: "admin" });
   await createSession(kv, { id: "u2", username: "viewer01", displayName: "Viewer", role: "viewer" });
+  await createSession(kv, { id: "u1", username: "admin01", displayName: "Admin", role: "admin" });
+
+  assert.equal(listCalls, 0);
+  assert.equal(JSON.parse(store.get(`${SESSION_INDEX_PREFIX}u1`)).length, 2);
+
   await deleteSessionsForUser(kv, "u1");
 
+  assert.equal(listCalls, 0);
+  assert.equal(store.has(`${SESSION_INDEX_PREFIX}u1`), false);
   const remaining = [...store.keys()].filter((key) => key.startsWith(SESSION_KEY_PREFIX));
   assert.equal(remaining.length, 1);
   const session = JSON.parse(store.get(remaining[0]));

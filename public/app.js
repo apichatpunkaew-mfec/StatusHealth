@@ -174,8 +174,10 @@ async function load() {
       location.replace(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
       return;
     }
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.detail ?? data.error ?? `HTTP ${response.status}`);
+    }
 
     state.devices = Array.isArray(data.devices) ? data.devices : [];
     state.summary = data.summary ?? null;

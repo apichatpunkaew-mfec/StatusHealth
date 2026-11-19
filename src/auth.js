@@ -10,6 +10,7 @@ export class AuthError extends Error {
 export const USER_KEY_PREFIX = "auth:user:";
 export const SESSION_KEY_PREFIX = "auth:session:";
 export const USER_INDEX_KEY = "auth:users";
+export const SESSION_INDEX_PREFIX = "auth:sessions:";
 export const SESSION_COOKIE = "ph_session";
 export const SESSION_TTL_SECONDS = 8 * 60 * 60;
 // Cloudflare Workers WebCrypto supports at most 100,000 PBKDF2 iterations.
@@ -174,6 +175,43 @@ export async function findUserByUsername(kv, username) {
   return entry?.id ? getUser(kv, entry.id) : null;
 }
 
+function sessionIndexKey(userId) {
+  return `${SESSION_INDEX_PREFIX}${userId}`;
+}
+
+async function getSessionIndex(kv, userId) {
+  const value = await kv.get(sessionIndexKey(userId), "json");
+  return Array.isArray(value)
+    ? value.filter((token) => typeof token === "string" && token.length > 0)
+    : [];
+}
+
+async function putSessionIndex(kv, userId, tokens) {
+  if (tokens.length === 0) {
+    await kv.delete(sessionIndexKey(userId));
+    return;
+  }
+  await kv.put(sessionIndexKey(userId), JSON.stringify(tokens));
+}
+
+async function pruneSessionIndex(kv, userId, tokens, keep = new Set()) {
+  const active = [];
+  for (const token of tokens) {
+    if (keep.has(token)) {
+      active.push(token);
+      continue;
+    }
+    const session = await kv.get(`${SESSION_KEY_PREFIX}${token}`, "json");
+    if (
+      session?.userId === userId &&
+      (!session.expiresAt || Date.parse(session.expiresAt) > Date.now())
+    ) {
+      active.push(token);
+    }
+  }
+  return active;
+}
+
 export async function createSession(kv, user) {
   const token = randomBase64Url(32);
   const now = new Date();
@@ -191,6 +229,10 @@ export async function createSession(kv, user) {
     }),
     { expirationTtl: SESSION_TTL_SECONDS },
   );
+  const index = await getSessionIndex(kv, user.id);
+  const pruned = await pruneSessionIndex(kv, user.id, index, new Set([token]));
+  if (!pruned.includes(token)) await putSessionIndex(kv, user.id, [...pruned, token]);
+  else if (pruned.length !== index.length) await putSessionIndex(kv, user.id, pruned);
   return { token, expiresAt };
 }
 
@@ -206,21 +248,29 @@ export async function getSession(kv, token) {
 }
 
 export async function deleteSession(kv, token) {
-  if (token) await kv.delete(`${SESSION_KEY_PREFIX}${token}`);
+  if (!token) return;
+  const key = `${SESSION_KEY_PREFIX}${token}`;
+  const session = await kv.get(key, "json");
+  await kv.delete(key);
+  if (!session?.userId) return;
+  const index = await getSessionIndex(kv, session.userId);
+  await putSessionIndex(
+    kv,
+    session.userId,
+    index.filter((item) => item !== token),
+  );
 }
 
 export async function deleteSessionsForUser(kv, userId) {
   if (!userId) return;
-  let cursor = null;
-  do {
-    const options = { prefix: SESSION_KEY_PREFIX, limit: 1000 };
-    if (cursor) options.cursor = cursor;
-    const page = await kv.list(options);
-    for (const key of page.keys) {
-      const session = await kv.get(key.name, "json");
-      if (session?.userId === userId) await kv.delete(key.name);
-    }
-    cursor = page.list_complete ? null : page.cursor;
-  } while (cursor);
+  const index = await pruneSessionIndex(
+    kv,
+    userId,
+    await getSessionIndex(kv, userId),
+  );
+  for (const token of index) {
+    await kv.delete(`${SESSION_KEY_PREFIX}${token}`);
+  }
+  await kv.delete(sessionIndexKey(userId));
 }
 

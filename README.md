@@ -298,6 +298,8 @@ Response สำเร็จ:
 - `POST /api/health` ใช้ bearer token เปรียบเทียบแบบ constant-time หลัง hash SHA-256 หมุนเวียน token ได้โดยแก้ secret `HEALTH_TOKEN` ใน Cloudflare Dashboard แล้วรัน installer ใหม่ด้วย `-Force -Token <token ใหม่>` (หรือใช้ CLI ก็ได้)
 - `GET /api/devices` เปิดสาธารณะเพื่อให้หน้าเว็บโหลดได้ ถ้าต้องการจำกัดการดู ให้เปิด **Cloudflare Access** บน route `/api/devices` และ `/`
 - KV เป็น eventual consistency ข้อมูลอาจใช้เวลาถึง ~60 วินาทีจึงปรากฏทุก region
+- หน้า Dashboard ใช้ index key `devices:index` แทน `KV.list()` เพื่อไม่ให้หมดโควต้า List ของ Workers KV อุปกรณ์จะปรากฏใน index หลัง agent ส่ง heartbeat ครั้งแรก
+- การล็อก/ลบผู้ใช้ใช้ session index ต่อ user (`auth:sessions:<id>`) แทน `KV.list()` เช่นกัน
 - ข้อมูลเครื่องถูกเก็บ TTL 30 วัน (`DEVICE_TTL_SECONDS`) และประวัติล่าสุด 30 ครั้ง (`HISTORY_LIMIT`)
 - ขนาด body สูงสุด 32 KB และเก็บได้ไม่เกิน ~1,000 เครื่องต่อรอบ (paginate 10 หน้า ๆ ละ 100 key)
 
