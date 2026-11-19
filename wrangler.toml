@@ -3,12 +3,9 @@ main = "src/worker.js"
 compatibility_date = "2026-11-19"
 workers_dev = true
 
-# เปลี่ยน id ด้านล่างเป็น KV namespace id ที่ได้จาก:
-#   npx wrangler kv namespace create HEALTH_KV
-# (ค่า 0 ทั้งหมดใช้สำหรับรัน local เท่านั้น)
 [[kv_namespaces]]
 binding = "HEALTH_KV"
-id = "00000000000000000000000000000000"
+id = "e2f0658e893943b79d132f7903b943c1"
 
 [assets]
 directory = "./public"
