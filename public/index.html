@@ -112,7 +112,7 @@
               <div class="token-head">
                 <div>
                   <h3 id="tokenTitle">สร้าง HEALTH_TOKEN</h3>
-                  <p class="muted">สุ่ม token ใหม่ได้ที่นี่ แล้วนำไปตั้งเป็น secret ของ Worker ก่อนติดตั้ง agent</p>
+                  <p class="muted">สุ่ม token ใหม่ได้ที่นี่ แล้วตั้งเป็น secret ใน Cloudflare Dashboard ครั้งเดียว ไม่ต้อง login Wrangler CLI</p>
                 </div>
                 <button id="generateTokenBtn" class="btn btn--primary" type="button">สุ่ม Token ใหม่</button>
               </div>
@@ -122,18 +122,21 @@
                 <button id="copyTokenBtn" class="btn" type="button" disabled>คัดลอก Token</button>
               </div>
 
-              <p class="muted command-label">รันบนเครื่องที่ login Wrangler แล้ว วาง token ที่คัดลอกเมื่อระบบถาม</p>
+              <p class="muted command-label">ตั้ง secret ครั้งเดียว: Cloudflare Dashboard → Workers &amp; Pages → pc-health-dashboard → Settings → Variables → Secret → HEALTH_TOKEN</p>
               <div class="code-block">
-                <code id="setTokenCommand">npx wrangler secret put HEALTH_TOKEN</code>
-                <button id="copySetTokenBtn" class="btn" type="button">คัดลอกคำสั่งตั้ง secret</button>
+                <code id="setTokenCommand">Cloudflare Dashboard → Workers &amp; Pages → pc-health-dashboard → Settings → Variables → Secret → HEALTH_TOKEN</code>
+                <button id="copySetTokenBtn" class="btn" type="button">คัดลอกวิธีตั้ง secret</button>
+              </div>
+              <div class="download-row">
+                <a class="btn" href="https://dash.cloudflare.com" target="_blank" rel="noopener">เปิด Cloudflare Dashboard</a>
               </div>
 
               <p id="tokenStatus" class="copy-status" role="status" aria-live="polite"></p>
-              <p class="token-warning">ห้ามแชร์ token ถ้าเปลี่ยน token ใหม่ต้องรัน installer ใหม่ทุกเครื่องด้วย <code>-Force</code></p>
+              <p class="token-warning">ห้ามแชร์ token หรือ screenshot คำสั่ง install เพราะ token จะฝังอยู่ในคำสั่ง ถ้าเปลี่ยน token ใหม่ต้องรัน installer ใหม่ทุกเครื่องด้วย <code>-Force</code></p>
             </section>
 
             <ol class="steps">
-              <li>ถ้ายังไม่มี token ให้กด <strong>สุ่ม Token ใหม่</strong> แล้วตั้งเป็น secret ด้วยคำสั่งด้านบน</li>
+              <li>ถ้ายังไม่มี token ให้กด <strong>สุ่ม Token ใหม่</strong> ตั้งเป็น secret ใน Cloudflare Dashboard แล้วใช้คำสั่งด้านล่างที่มี token ฝังอยู่</li>
               <li>เปิด PowerShell แบบ <strong>Run as Administrator</strong> บนเครื่อง Windows ที่ต้องการตรวจสอบ</li>
               <li>วางคำสั่งด้านล่างแล้วกด Enter</li>
               <li>ใส่ <code>HEALTH_TOKEN</code> เมื่อระบบถาม ระบบจะสร้าง Windows Service ชื่อ <code>PCHealthAgent</code> และเริ่มส่งทันที</li>
@@ -177,7 +180,7 @@
             <p class="install-note">
               คำสั่งจะโหลดไฟล์ agent ไปยัง <code>%LOCALAPPDATA%\PCHealthAgent</code> สร้าง Windows Service ชื่อ <code>PCHealthAgent</code>
               ที่ start อัตโนมัติตอน boot และ restart เองถ้า agent ตาย เริ่มส่งข้อมูลทุก 10 วินาที
-              token ที่สร้างในหน้าเว็บอยู่ใน browser ของคุณเท่านั้น ไม่ถูกส่งไปเก็บใน Worker อัตโนมัติ
+              token ที่สร้างในหน้าเว็บจะถูกฝังลงในคำสั่ง install/reinstall หลังกด <strong>สุ่ม Token ใหม่</strong> และอยู่ใน browser ของคุณเท่านั้น ไม่ถูกส่งไปเก็บใน Worker อัตโนมัติ
             </p>
           </div>
         </div>

@@ -4,6 +4,7 @@ param(
   [int]$IntervalSeconds = 10,
   [string]$DisplayName = "",
   [string]$DeviceId = "",
+  [string]$Token = "",
   [string]$TaskName = "PC Health Dashboard Agent",
   [string]$ServiceName = "PCHealthAgent",
   [string]$ServiceDisplayName = "PC Health Dashboard Agent",
@@ -131,7 +132,13 @@ if ((Test-Path $ConfigPath) -and -not $Force) {
 }
 
 Test-HealthEndpoint -Endpoint $Endpoint
-$token = Read-SecretToken
+
+if (-not [string]::IsNullOrWhiteSpace($Token)) {
+  $token = $Token
+  Write-Host "Using HEALTH_TOKEN from -Token parameter"
+} else {
+  $token = Read-SecretToken
+}
 
 if ([string]::IsNullOrWhiteSpace($token) -or $token -eq "CHANGE_ME") {
   throw "HEALTH_TOKEN cannot be empty."

@@ -31,8 +31,9 @@ Browser     <--------------------  GET /api/devices  <-- Worker + Dashboard
 npm install
 npx wrangler login
 
-# ตั้ง token ที่ใช้ยืนยันตัวตน agent (อย่า commit ค่านี้)
-npx wrangler secret put HEALTH_TOKEN
+# ตั้ง token ที่ใช้ยืนยันตัวตน agent ได้ 2 วิธี (อย่า commit ค่านี้)
+# 1) Cloudflare Dashboard → Workers & Pages → pc-health-dashboard → Settings → Variables → Secret → HEALTH_TOKEN
+# 2) หรือผ่าน CLI: npx wrangler secret put HEALTH_TOKEN
 
 # ตรวจสอบ/สร้าง KV แล้วเขียน id ลง wrangler.toml อัตโนมัติ
 npm run setup:kv
@@ -58,18 +59,14 @@ npm run deploy
 
 Wrangler จะพิมพ์ URL ให้หลัง deploy (ในโปรเจกต์นี้คือ `https://pc-health-dashboard.apichat-p-1989.workers.dev`) agent จะอ่าน endpoint/token จาก `windows/agent.config.json` ซึ่งถูก gitignore อยู่
 
-token ที่ใช้คือค่าที่ตั้งด้วย:
+token ที่ใช้คือค่าที่ตั้งใน secret `HEALTH_TOKEN` (ผ่าน Cloudflare Dashboard หรือ CLI ก็ได้) ต้องตรงกับค่าที่ฝังในคำสั่ง install
 
-```bash
-npx wrangler secret put HEALTH_TOKEN
-```
-
-installer จะถาม token จากคุณแล้วเขียนลง config ให้โดยไม่โชว์บนหน้าจอ และจำกัด ACL ให้เฉพาะ user คนนั้นอ่านได้
+installer จะเขียน token ลง `agent.config.json` ให้โดยไม่โชว์บนหน้าจอ (ถ้าไม่ส่ง `-Token` จะถามแทน) และจำกัด ACL ให้เฉพาะ user คนนั้นอ่านได้
 
 ถ้าต้องการรันแบบครั้งเดียวด้วย `send-health.bat` ให้แก้ token ในไฟล์นั้นเอง หรือ set environment variable:
 
 ```bat
-set HEALTH_TOKEN=<token ที่ตั้งด้วย wrangler secret>
+set HEALTH_TOKEN=ph_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 send-health.bat
 ```
 
@@ -79,26 +76,34 @@ send-health.bat
 
 ### สร้าง HEALTH_TOKEN จากหน้าเว็บ
 
-กดปุ่ม **สร้าง Token** มุมขวาบน → กด **สุ่ม Token ใหม่** แล้วกด **คัดลอก Token** token จะถูกสุ่มด้วย `crypto.getRandomValues` ใน browser และมีรูปแบบ `ph_...` จากนั้นรันคำสั่งด้านล่างบนเครื่องที่ login Wrangler ไว้ แล้ววาง token เมื่อระบบถาม:
+กดปุ่ม **สร้าง Token** มุมขวาบน → กด **สุ่ม Token ใหม่** token จะถูกสุ่มด้วย `crypto.getRandomValues` ใน browser และมีรูปแบบ `ph_...` ระบบจะฝัง token ลงในคำสั่ง install/reinstall ให้ทันที
 
-```bash
-npx wrangler secret put HEALTH_TOKEN
+ตั้ง secret **ครั้งเดียว** ผ่าน Cloudflare Dashboard (ไม่ต้อง login Wrangler CLI):
+
+1. เปิด https://dash.cloudflare.com
+2. เข้า **Workers & Pages → pc-health-dashboard → Settings → Variables**
+3. แก้/เพิ่ม secret ชื่อ `HEALTH_TOKEN` แล้ววาง token ที่คัดลอกมา บันทึกและรอ deploy สั้น ๆ
+
+dashboard ไม่มีระบบ login จึง**ไม่มี endpoint ที่เขียน secret แทนคุณ** และไม่เก็บ token ไว้ใน KV อัตโนมัติ ถ้าสร้าง token ใหม่ทุกเครื่องที่ติดตั้งอยู่ต้องรัน installer ใหม่ด้วย `-Force` และใส่ token ใหม่ ส่วน secret เก่าจะยังใช้งานได้จนกว่าคุณจะตั้งค่า secret ใหม่หรือลบออก
+
+เปิด dashboard แล้วกดปุ่ม **ติดตั้ง Agent** มุมขวาบน กด **คัดลอกคำสั่ง** แล้ววางใน PowerShell ที่เปิดแบบ **Run as Administrator** กด Enter คำสั่งที่คัดลอกหลังสุ่ม token จะมี `-Token` อยู่แล้ว:
+
+```powershell
+$bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1; & ([scriptblock]::Create($bootstrap)) -Token ph_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-dashboard ไม่มีระบบ login จึง**ไม่มี endpoint ที่เขียน secret แทนคุณ** และไม่เก็บ token ไว้ใน KV อัตโนมัติ ถ้าสร้าง token ใหม่ทุกเครื่องที่ติดตั้งอยู่ต้องรัน installer ใหม่ด้วย `-Force` และใส่ token ใหม่ ส่วน secret เก่าจะยังใช้งานได้จนกว่าคุณจะตั้งค่า secret ใหม่ 또는ลบออก
+คำสั่งนี้โหลดไฟล์ agent จาก GitHub ไปยัง `%LOCALAPPDATA%\PCHealthAgent` แล้วเรียก installer ให้เอง installer จะ **ส่งข้อมูลจริง 1 ครั้งทันทีเพื่อตรวจ token** ก่อนสร้าง Windows Service ชื่อ `PCHealthAgent` หาก token ผิดหรือ network ไม่ได้จะแจ้ง error ทันที ตัว service เป็น `.exe` ที่ compile จาก `PCHealthAgent.Service.cs` ด้วย `.NET Framework 4.x` ที่มีอยู่ใน Windows ไม่ต้องติดตั้ง tool เพิ่ม จะ start อัตโนมัติตอน boot และ restart agent เองถ้า process ตาย ในหน้าเว็บยังมีปุ่มดาวน์โหลด `bootstrap.ps1` และ ZIP ของโปรเจกต์ให้ด้วย
 
-เปิด dashboard แล้วกดปุ่ม **ติดตั้ง Agent** มุมขวาบน กด **คัดลอกคำสั่ง** แล้ววางใน PowerShell ที่เปิดแบบ **Run as Administrator** กด Enter:
+หากยังไม่สุ่ม token สามารถใช้คำสั่งเดิมและพิมพ์ token เองตอน installer ถามได้:
 
 ```powershell
 irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1 | iex
 ```
 
-คำสั่งนี้โหลดไฟล์ agent จาก GitHub ไปยัง `%LOCALAPPDATA%\PCHealthAgent` แล้วเรียก installer ให้เอง (ยังถาม `HEALTH_TOKEN` เหมือนเดิม) installer จะ **ส่งข้อมูลจริง 1 ครั้งทันทีเพื่อตรวจ token** ก่อนสร้าง Windows Service ชื่อ `PCHealthAgent` หาก token ผิดหรือ network ไม่ได้จะแจ้ง error ทันที ตัว service เป็น `.exe` ที่ compile จาก `PCHealthAgent.Service.cs` ด้วย `.NET Framework 4.x` ที่มีอยู่ใน Windows ไม่ต้องติดตั้ง tool เพิ่ม จะ start อัตโนมัติตอน boot และ restart agent เองถ้า process ตาย ในหน้าเว็บยังมีปุ่มดาวน์โหลด `bootstrap.ps1` และ ZIP ของโปรเจกต์ให้ด้วย
-
 หากเคยติดตั้งแล้วแต่ dashboard ยังไม่ขึ้นเครื่อง ให้ใช้คำสั่งติดตั้งใหม่ (force) จากหน้าเว็บ หรือรันเอง:
 
 ```powershell
-$bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1; & ([scriptblock]::Create($bootstrap)) -Force
+$bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1; & ([scriptblock]::Create($bootstrap)) -Force -Token ph_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 แล้วตรวจสอบด้วย:
@@ -169,6 +174,9 @@ send-health.bat
 
 # เปลี่ยนความถี่เป็น 5 วินาที
 .\install-agent.ps1 -Force -IntervalSeconds 5
+
+# ใช้ token ที่สร้างจากหน้าเว็บโดยไม่ต้องพิมพ์ตอน installer ถาม
+.\install-agent.ps1 -Force -Token "ph_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 # หยุดและลบ service ออก แต่เก็บ config/log ไว้
 .\install-agent.ps1 -Uninstall
@@ -275,7 +283,7 @@ Response สำเร็จ:
 
 ## ความปลอดภัยและข้อจำกัด
 
-- `POST /api/health` ใช้ bearer token เปรียบเทียบแบบ constant-time หลัง hash SHA-256 หมุนเวียน token ได้ด้วย `npx wrangler secret put HEALTH_TOKEN` แล้วแก้ใน bat
+- `POST /api/health` ใช้ bearer token เปรียบเทียบแบบ constant-time หลัง hash SHA-256 หมุนเวียน token ได้โดยแก้ secret `HEALTH_TOKEN` ใน Cloudflare Dashboard แล้วรัน installer ใหม่ด้วย `-Force -Token <token ใหม่>` (หรือใช้ CLI ก็ได้)
 - `GET /api/devices` เปิดสาธารณะเพื่อให้หน้าเว็บโหลดได้ ถ้าต้องการจำกัดการดู ให้เปิด **Cloudflare Access** บน route `/api/devices` และ `/`
 - KV เป็น eventual consistency ข้อมูลอาจใช้เวลาถึง ~60 วินาทีจึงปรากฏทุก region
 - ข้อมูลเครื่องถูกเก็บ TTL 30 วัน (`DEVICE_TTL_SECONDS`) และประวัติล่าสุด 30 ครั้ง (`HISTORY_LIMIT`)

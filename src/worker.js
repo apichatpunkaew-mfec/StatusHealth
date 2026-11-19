@@ -75,7 +75,7 @@ async function handleHealthPost(request, env, config) {
   const auth = await authorize(request, env);
   if (auth.reason === "missing_secret") {
     return failure(503, "SERVER_TOKEN_NOT_CONFIGURED", {
-      detail: "Run: npx wrangler secret put HEALTH_TOKEN",
+      detail: "Set HEALTH_TOKEN in Cloudflare Dashboard: Workers & Pages > pc-health-dashboard > Settings > Variables",
     });
   }
   if (!auth.valid) return failure(401, "UNAUTHORIZED");

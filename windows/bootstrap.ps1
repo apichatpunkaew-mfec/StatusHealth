@@ -4,6 +4,7 @@ param(
   [int]$IntervalSeconds = 10,
   [string]$DisplayName = "",
   [string]$DeviceId = "",
+  [string]$Token = "",
   [string]$TaskName = "PC Health Dashboard Agent",
   [string]$ServiceName = "PCHealthAgent",
   [string]$ServiceDisplayName = "PC Health Dashboard Agent",
@@ -77,6 +78,7 @@ if (-not [string]::IsNullOrWhiteSpace($DeviceId)) { $procArgs += @("-DeviceId", 
 if ($Force) { $procArgs += "-Force" }
 if ($NoStart) { $procArgs += "-NoStart" }
 if ($SkipVerify) { $procArgs += "-SkipVerify" }
+if (-not [string]::IsNullOrWhiteSpace($Token) -and -not $Uninstall) { $procArgs += @("-Token", $Token) }
 if ($Uninstall) { $procArgs += "-Uninstall" }
 if ($RemoveFiles) { $procArgs += "-RemoveFiles" }
 

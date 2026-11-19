@@ -25,3 +25,14 @@ export function createHealthToken(byteLength = 32, prefix = "ph_") {
 
   return `${prefix}${encoded}`;
 }
+
+export function buildAgentCommands(
+  token,
+  bootstrapUrl = "https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1",
+) {
+  const prefix = `$bootstrap = irm ${bootstrapUrl}; & ([scriptblock]::Create($bootstrap))`;
+  return {
+    install: `${prefix} -Token ${token}`,
+    reinstall: `${prefix} -Force -Token ${token}`,
+  };
+}

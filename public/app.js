@@ -1,4 +1,4 @@
-import { createHealthToken } from "./token.js";
+import { buildAgentCommands, createHealthToken } from "./token.js";
 
 const STATUS_META = {
   ok: { label: "ปกติ", className: "ok" },
@@ -268,6 +268,12 @@ $("#copyReinstallBtn").addEventListener("click", () => copyCommand("#reinstallCo
 $("#copyDiagnoseBtn").addEventListener("click", () => copyCommand("#diagnoseCommand"));
 $("#copyUninstallBtn").addEventListener("click", () => copyCommand("#uninstallCommand"));
 
+function applyTokenToCommands(token) {
+  const commands = buildAgentCommands(token, `${location.origin}/agent/bootstrap.ps1`);
+  $("#installCommand").textContent = commands.install;
+  $("#reinstallCommand").textContent = commands.reinstall;
+}
+
 $("#generateTokenBtn").addEventListener("click", () => {
   try {
     const token = createHealthToken();
@@ -275,7 +281,8 @@ $("#generateTokenBtn").addEventListener("click", () => {
     element.textContent = token;
     element.classList.add("token-value");
     $("#copyTokenBtn").disabled = false;
-    $("#tokenStatus").textContent = "สร้าง token แล้ว อย่าลืมตั้งเป็น secret ก่อนติดตั้ง agent";
+    applyTokenToCommands(token);
+    $("#tokenStatus").textContent = "สร้าง token และอัปเดตคำสั่ง install/reinstall แล้ว อย่าลืมตั้ง secret ใน Cloudflare Dashboard";
   } catch (error) {
     $("#tokenStatus").textContent = `สร้าง token ไม่สำเร็จ: ${error.message}`;
   }
