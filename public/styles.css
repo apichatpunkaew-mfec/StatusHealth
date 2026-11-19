@@ -61,6 +61,46 @@ body {
 }
 .btn:hover { border-color: var(--accent); }
 .btn:disabled { opacity: 0.6; cursor: wait; }
+.btn--primary { background: var(--accent); border-color: var(--accent); color: #071226; font-weight: 600; }
+.btn--primary:hover { filter: brightness(1.08); border-color: var(--accent); }
+a.btn { display: inline-block; text-decoration: none; }
+
+.icon-btn {
+  border: 1px solid var(--line); border-radius: 10px; padding: 5px 10px;
+  background: var(--surface-2); color: var(--muted); cursor: pointer; font: inherit;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal[hidden] { display: none; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(3, 7, 18, 0.72); backdrop-filter: blur(3px); }
+.modal-card {
+  position: relative; width: min(720px, 100%); max-height: calc(100vh - 40px); overflow: auto;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+.modal-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 18px 20px; border-bottom: 1px solid var(--line);
+}
+.modal-head h2 { margin: 0; font-size: 17px; }
+.install-body { padding: 20px; }
+.steps { margin: 0 0 16px; padding-left: 20px; color: var(--muted); }
+.steps li + li { margin-top: 6px; }
+.code-block {
+  display: flex; align-items: center; gap: 12px; padding: 14px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2);
+}
+.code-block code {
+  flex: 1; padding: 0; background: transparent; color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px;
+  word-break: break-all;
+}
+.code-block .btn { flex: 0 0 auto; }
+.copy-status { min-height: 18px; margin: 8px 0 0; color: var(--ok); font-size: 12px; }
+.download-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.install-note { margin: 16px 0 0; color: var(--muted); font-size: 12px; }
+.install-note code { font-size: 11px; }
 
 .summary {
   display: grid; gap: 12px; margin-bottom: 20px;

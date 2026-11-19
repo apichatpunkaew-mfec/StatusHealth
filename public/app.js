@@ -210,3 +210,54 @@ document.addEventListener("visibilitychange", () => {
 
 setInterval(load, 10_000);
 load();
+
+const installModal = $("#installModal");
+
+function openInstallModal() {
+  installModal.hidden = false;
+  $("#copyInstallBtn").focus();
+}
+
+function closeInstallModal() {
+  installModal.hidden = true;
+  $("#installBtn").focus();
+}
+
+$("#installBtn").addEventListener("click", openInstallModal);
+$("#closeInstallBtn").addEventListener("click", closeInstallModal);
+installModal.addEventListener("click", (event) => {
+  if (event.target.matches("[data-close-install]")) closeInstallModal();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !installModal.hidden) closeInstallModal();
+});
+
+async function copyInstallCommand() {
+  const command = $("#installCommand").textContent.trim();
+  const status = $("#copyStatus");
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(command);
+    } else {
+      const area = document.createElement("textarea");
+      area.value = command;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    status.textContent = "คัดลอกแล้ว นำไปวางใน PowerShell ได้เลย";
+  } catch (error) {
+    status.textContent = `คัดลอกไม่สำเร็จ: ${error.message}`;
+  }
+
+  setTimeout(() => {
+    status.textContent = "";
+  }, 3000);
+}
+
+$("#copyInstallBtn").addEventListener("click", copyInstallCommand);

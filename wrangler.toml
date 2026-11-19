@@ -13,6 +13,7 @@ binding = "ASSETS"
 run_worker_first = true
 
 [vars]
+AGENT_BOOTSTRAP_URL = "https://raw.githubusercontent.com/apichatpunkaew-mfec/StatusHealth/main/windows/bootstrap.ps1"
 STALE_AFTER_SECONDS = "300"
 HISTORY_LIMIT = "30"
 DEVICE_TTL_SECONDS = "2592000"

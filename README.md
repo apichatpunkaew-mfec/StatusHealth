@@ -63,6 +63,18 @@ send-health.bat
 
 ## รันบน Windows แบบ real-time
 
+### ติดตั้งจากหน้าเว็บ (แนะนำ)
+
+เปิด dashboard แล้วกดปุ่ม **ติดตั้ง Agent** มุมขวาบน กด **คัดลอกคำสั่ง** แล้ววางใน PowerShell กด Enter:
+
+```powershell
+irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1 | iex
+```
+
+คำสั่งนี้โหลดไฟล์ agent จาก GitHub ไปยัง `%LOCALAPPDATA%\PCHealthAgent` แล้วเรียก installer ให้เอง (ยังถาม `HEALTH_TOKEN` เหมือนเดิม) ในหน้าเว็บยังมีปุ่มดาวน์โหลด `bootstrap.ps1` และ ZIP ของโปรเจกต์ให้ด้วย
+
+### ติดตั้งแบบ copy โฟลเดอร์เอง
+
 1. copy โฟลเดอร์ `windows/` ไปยังเครื่อง เช่น `C:\HealthCheck\`
 2. เปิด PowerShell (ไม่ต้องเป็น admin) แล้วรัน installer:
 

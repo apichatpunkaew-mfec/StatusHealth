@@ -17,6 +17,9 @@ const SECURITY_HEADERS = {
   "X-Frame-Options": "SAMEORIGIN",
 };
 
+const DEFAULT_BOOTSTRAP_URL =
+  "https://raw.githubusercontent.com/apichatpunkaew-mfec/StatusHealth/main/windows/bootstrap.ps1";
+
 function applyHeaders(headers, extra = {}) {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) headers.set(key, value);
   for (const [key, value] of Object.entries(extra)) headers.set(key, value);
@@ -160,6 +163,22 @@ async function listDevices(env, config) {
   return devices;
 }
 
+async function serveBootstrap(env, method) {
+  const url = env.AGENT_BOOTSTRAP_URL || DEFAULT_BOOTSTRAP_URL;
+  const upstream = await fetch(url, { cf: { cacheTtl: 300 } });
+  if (!upstream.ok) {
+    return failure(502, "BOOTSTRAP_UNAVAILABLE", { detail: `upstream status ${upstream.status}` });
+  }
+
+  const headers = applyHeaders(new Headers(), {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Content-Disposition": 'attachment; filename="bootstrap.ps1"',
+    "Cache-Control": "public, max-age=300",
+  });
+  if (method === "HEAD") return new Response(null, { status: 200, headers });
+  return new Response(upstream.body, { status: 200, headers });
+}
+
 function serveAsset(request, env) {
   if (!env.ASSETS) return failure(500, "ASSETS_BINDING_MISSING");
   return env.ASSETS.fetch(request).then((response) => {
@@ -212,6 +231,13 @@ export default {
           summary: summarize(devices),
           devices,
         });
+      }
+
+      if (url.pathname === "/agent/bootstrap.ps1") {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          return failure(405, "METHOD_NOT_ALLOWED", { Allow: "GET, HEAD" });
+        }
+        return await serveBootstrap(env, request.method);
       }
 
       if (url.pathname.startsWith("/api/")) return failure(404, "NOT_FOUND");

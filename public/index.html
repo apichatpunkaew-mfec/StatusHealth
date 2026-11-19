@@ -19,6 +19,7 @@
         </div>
         <div class="header-actions">
           <span id="connection" class="connection">กำลังเชื่อมต่อ…</span>
+          <button id="installBtn" class="btn btn--primary" type="button">ติดตั้ง Agent</button>
           <button id="refreshBtn" class="btn" type="button">รีเฟรชตอนนี้</button>
         </div>
       </header>
@@ -93,6 +94,43 @@
           </table>
         </div>
       </section>
+
+      <div id="installModal" class="modal" hidden>
+        <div class="modal-backdrop" data-close-install></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+          <div class="modal-head">
+            <div>
+              <h2 id="installTitle">ติดตั้ง Agent บน Windows</h2>
+              <p class="muted">คัดลอกคำสั่งด้านล่างไปวางใน PowerShell แล้วกด Enter</p>
+            </div>
+            <button id="closeInstallBtn" class="icon-btn" type="button" aria-label="ปิด">✕</button>
+          </div>
+
+          <div class="install-body">
+            <ol class="steps">
+              <li>เปิด PowerShell บนเครื่อง Windows ที่ต้องการตรวจสอบ</li>
+              <li>วางคำสั่งด้านล่างแล้วกด Enter</li>
+              <li>ใส่ <code>HEALTH_TOKEN</code> เมื่อระบบถาม แล้วรอไม่กี่วินาที</li>
+            </ol>
+
+            <div class="code-block">
+              <code id="installCommand">irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1 | iex</code>
+              <button id="copyInstallBtn" class="btn btn--primary" type="button">คัดลอกคำสั่ง</button>
+            </div>
+            <p id="copyStatus" class="copy-status" role="status" aria-live="polite"></p>
+
+            <div class="download-row">
+              <a class="btn" href="/agent/bootstrap.ps1" download="bootstrap.ps1">ดาวน์โหลด bootstrap.ps1</a>
+              <a class="btn" href="https://github.com/apichatpunkaew-mfec/StatusHealth/archive/refs/heads/main.zip" download>ดาวน์โหลดทั้งโปรเจกต์ (ZIP)</a>
+            </div>
+
+            <p class="install-note">
+              คำสั่งจะโหลดไฟล์ agent ไปยัง <code>%LOCALAPPDATA%\PCHealthAgent</code> สร้าง Scheduled Task
+              และเริ่มส่งข้อมูลทุก 10 วินาทีโดยอัตโนมัติ <strong>ไม่มีการฝัง token ไว้ในหน้าเว็บนี้</strong>
+            </p>
+          </div>
+        </div>
+      </div>
 
       <footer class="footer">
         <span>Auto refresh ทุก 10 วินาที</span>
