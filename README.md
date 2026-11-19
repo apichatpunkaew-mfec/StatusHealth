@@ -83,7 +83,21 @@ send-health.bat
 irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1 | iex
 ```
 
-คำสั่งนี้โหลดไฟล์ agent จาก GitHub ไปยัง `%LOCALAPPDATA%\PCHealthAgent` แล้วเรียก installer ให้เอง (ยังถาม `HEALTH_TOKEN` เหมือนเดิม) ในหน้าเว็บยังมีปุ่มดาวน์โหลด `bootstrap.ps1` และ ZIP ของโปรเจกต์ให้ด้วย
+คำสั่งนี้โหลดไฟล์ agent จาก GitHub ไปยัง `%LOCALAPPDATA%\PCHealthAgent` แล้วเรียก installer ให้เอง (ยังถาม `HEALTH_TOKEN` เหมือนเดิม) installer จะ **ส่งข้อมูลจริง 1 ครั้งทันทีเพื่อตรวจ token** ก่อนสร้างScheduled Task หาก token ผิดหรือ network ไม่ได้จะแจ้ง error ทันที ในหน้าเว็บยังมีปุ่มดาวน์โหลด `bootstrap.ps1` และ ZIP ของโปรเจกต์ให้ด้วย
+
+หากเคยติดตั้งแล้วแต่ dashboard ยังไม่ขึ้นเครื่อง ให้ใช้คำสั่งติดตั้งใหม่ (force) จากหน้าเว็บ หรือรันเอง:
+
+```powershell
+$bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1; & ([scriptblock]::Create($bootstrap)) -Force
+```
+
+แล้วตรวจสอบด้วย:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\PCHealthAgent\diagnose.ps1"
+```
+
+คำสั่ง `diagnose.ps1` จะแสดงสถานะ Scheduled Task, ค่าที่ตั้งไว้ (ปิดบัง token), log ล่าสุด และทดสอบส่งข้อมูล 1 ครั้งโดยไม่เปิดเผย token
 
 ### ติดตั้งแบบ copy โฟลเดอร์เอง
 

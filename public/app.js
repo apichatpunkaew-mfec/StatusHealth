@@ -232,8 +232,8 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !installModal.hidden) closeInstallModal();
 });
 
-async function copyInstallCommand() {
-  const command = $("#installCommand").textContent.trim();
+async function copyCommand(commandSelector) {
+  const command = $(commandSelector).textContent.trim();
   const status = $("#copyStatus");
 
   try {
@@ -260,4 +260,6 @@ async function copyInstallCommand() {
   }, 3000);
 }
 
-$("#copyInstallBtn").addEventListener("click", copyInstallCommand);
+$("#copyInstallBtn").addEventListener("click", () => copyCommand("#installCommand"));
+$("#copyReinstallBtn").addEventListener("click", () => copyCommand("#reinstallCommand"));
+$("#copyDiagnoseBtn").addEventListener("click", () => copyCommand("#diagnoseCommand"));

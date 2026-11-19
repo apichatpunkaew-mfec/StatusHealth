@@ -119,6 +119,18 @@
             </div>
             <p id="copyStatus" class="copy-status" role="status" aria-live="polite"></p>
 
+            <p class="muted command-label">หากเคยติดตั้งแล้วแต่ยังไม่ขึ้นข้อมูล ให้ใช้คำสั่งติดตั้งใหม่นี้ (จะถาม token อีกครั้ง)</p>
+            <div class="code-block">
+              <code id="reinstallCommand">$bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1; &amp; ([scriptblock]::Create($bootstrap)) -Force</code>
+              <button id="copyReinstallBtn" class="btn" type="button">คัดลอกคำสั่งซ่อม</button>
+            </div>
+
+            <p class="muted command-label">หรือตรวจสอบการติดตั้ง/ทดสอบส่งข้อมูล 1 ครั้งด้วยคำสั่งนี้</p>
+            <div class="code-block">
+              <code id="diagnoseCommand">powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\PCHealthAgent\diagnose.ps1"</code>
+              <button id="copyDiagnoseBtn" class="btn" type="button">คัดลอกคำสั่งตรวจสอบ</button>
+            </div>
+
             <div class="download-row">
               <a class="btn" href="/agent/bootstrap.ps1" download="bootstrap.ps1">ดาวน์โหลด bootstrap.ps1</a>
               <a class="btn" href="https://github.com/apichatpunkaew-mfec/StatusHealth/archive/refs/heads/main.zip" download>ดาวน์โหลดทั้งโปรเจกต์ (ZIP)</a>

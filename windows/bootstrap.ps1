@@ -20,7 +20,8 @@ $files = @(
   "collect-and-send.ps1",
   "send-health.bat",
   "run-agent.bat",
-  "agent.config.example.json"
+  "agent.config.example.json",
+  "diagnose.ps1"
 )
 
 Write-Host "Installing PC Health Agent"

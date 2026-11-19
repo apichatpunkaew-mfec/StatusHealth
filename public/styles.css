@@ -98,6 +98,7 @@ a.btn { display: inline-block; text-decoration: none; }
 }
 .code-block .btn { flex: 0 0 auto; }
 .copy-status { min-height: 18px; margin: 8px 0 0; color: var(--ok); font-size: 12px; }
+.command-label { margin: 14px 0 6px; font-size: 12px; }
 .download-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
 .install-note { margin: 16px 0 0; color: var(--muted); font-size: 12px; }
 .install-note code { font-size: 11px; }

@@ -7,6 +7,7 @@ param(
   [string]$TaskName = "PC Health Dashboard Agent",
   [switch]$Force,
   [switch]$NoStart,
+  [switch]$SkipVerify,
   [switch]$Uninstall
 )
 
@@ -71,6 +72,22 @@ Set-Content -Path $ConfigPath -Value ($config | ConvertTo-Json -Depth 4) -Encodi
 Protect-ConfigFile -Path $ConfigPath
 Write-Host "Wrote config: $ConfigPath"
 
+if (-not $SkipVerify) {
+  Write-Host "Verifying token by sending one test sample..."
+  try {
+    $probe = Send-HealthOnce `
+      -Endpoint $Endpoint `
+      -Token $token `
+      -DeviceId $DeviceId `
+      -DisplayName $DisplayName
+    Write-Host "Verified: id=$($probe.id) status=$($probe.status)"
+  } catch {
+    $detail = $_.ErrorDetails.Message
+    if ([string]::IsNullOrWhiteSpace($detail)) { $detail = $_.Exception.Message }
+    throw "Verification failed (check HEALTH_TOKEN / network): $detail"
+  }
+}
+
 $agentPath = Join-Path $PSScriptRoot "agent.ps1"
 $logPath = Join-Path $PSScriptRoot "agent.log"
 
@@ -78,8 +95,9 @@ $action = New-ScheduledTaskAction `
   -Execute "powershell.exe" `
   -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -ConfigPath "{1}"' -f $agentPath, $ConfigPath)
 
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
-$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
+$runAs = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User $runAs
+$principal = New-ScheduledTaskPrincipal -UserId $runAs -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries `
   -DontStopIfGoingOnBatteries `
@@ -100,6 +118,7 @@ Register-ScheduledTask `
 
 if (-not $NoStart) {
   Start-ScheduledTask -TaskName $TaskName
+  Start-Sleep -Seconds 3
 }
 
 Write-Host ""
@@ -107,5 +126,10 @@ Write-Host "Installed and started scheduled task: $TaskName"
 Write-Host "Agent : $agentPath"
 Write-Host "Log   : $logPath"
 Write-Host "Task  : $((Get-ScheduledTask -TaskName $TaskName).State)"
+if (Test-Path $logPath) {
+  Write-Host ""
+  Write-Host "--- agent.log (last 10 lines) ---"
+  Get-Content -Path $logPath -Tail 10
+}
 Write-Host ""
 Write-Host "Dashboard: https://pc-health-dashboard.apichat-p-1989.workers.dev"
