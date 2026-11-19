@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   AuthError,
+  PBKDF2_ITERATIONS,
   SESSION_KEY_PREFIX,
   clearSessionCookie,
   createSession,
@@ -37,9 +38,19 @@ test("normalizeRole accepts admin and viewer", () => {
 test("hashPassword and verifyPassword round-trip", async () => {
   const stored = await hashPassword("correct horse battery");
   assert.equal(stored.algorithm, "pbkdf2-sha256");
+  assert.equal(stored.iterations, PBKDF2_ITERATIONS);
+  assert.ok(stored.iterations <= 100_000, "Cloudflare Workers PBKDF2 limit is 100,000 iterations");
   assert.equal(stored.hash.length, 43);
   assert.equal(await verifyPassword("correct horse battery", stored), true);
   assert.equal(await verifyPassword("wrong password", stored), false);
+});
+
+test("verifyPassword rejects legacy iteration counts unsupported by Workers", async () => {
+  const stored = await hashPassword("password123");
+  await assert.rejects(
+    () => verifyPassword("password123", { ...stored, iterations: 180_000 }),
+    AuthError,
+  );
 });
 
 test("publicUser removes password material", () => {

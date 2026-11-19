@@ -12,7 +12,10 @@ export const SESSION_KEY_PREFIX = "auth:session:";
 export const USER_INDEX_KEY = "auth:users";
 export const SESSION_COOKIE = "ph_session";
 export const SESSION_TTL_SECONDS = 8 * 60 * 60;
-export const PBKDF2_ITERATIONS = 180_000;
+// Cloudflare Workers WebCrypto supports at most 100,000 PBKDF2 iterations.
+export const PBKDF2_ITERATIONS = 100_000;
+const MIN_PBKDF2_ITERATIONS = 100_000;
+const MAX_PBKDF2_ITERATIONS = 100_000;
 
 const encoder = new TextEncoder();
 const ROLES = new Set(["admin", "viewer"]);
@@ -101,7 +104,10 @@ export async function hashPassword(password) {
 
 export async function verifyPassword(password, user) {
   if (!user?.salt || !user?.hash) return false;
-  const iterations = Math.min(1_000_000, Math.max(100_000, Number(user.iterations) || PBKDF2_ITERATIONS));
+  const iterations = Number(user.iterations) || PBKDF2_ITERATIONS;
+  if (!Number.isInteger(iterations) || iterations < MIN_PBKDF2_ITERATIONS || iterations > MAX_PBKDF2_ITERATIONS) {
+    throw new AuthError("รูปแบบรหัสผ่านของผู้ใช้นี้ไม่รองรับ กรุณาสร้างผู้ใช้ใหม่");
+  }
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
     { name: "PBKDF2", salt: base64UrlToBytes(user.salt), iterations, hash: "SHA-256" },
