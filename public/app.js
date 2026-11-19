@@ -1,3 +1,5 @@
+import { createHealthToken } from "./token.js";
+
 const STATUS_META = {
   ok: { label: "ปกติ", className: "ok" },
   warning: { label: "เฝ้าระวัง", className: "warning" },
@@ -213,9 +215,9 @@ load();
 
 const installModal = $("#installModal");
 
-function openInstallModal() {
+function openInstallModal(focusSelector = "#copyInstallBtn") {
   installModal.hidden = false;
-  $("#copyInstallBtn").focus();
+  $(focusSelector).focus();
 }
 
 function closeInstallModal() {
@@ -223,7 +225,8 @@ function closeInstallModal() {
   $("#installBtn").focus();
 }
 
-$("#installBtn").addEventListener("click", openInstallModal);
+$("#installBtn").addEventListener("click", () => openInstallModal());
+$("#tokenBtn").addEventListener("click", () => openInstallModal("#generateTokenBtn"));
 $("#closeInstallBtn").addEventListener("click", closeInstallModal);
 installModal.addEventListener("click", (event) => {
   if (event.target.matches("[data-close-install]")) closeInstallModal();
@@ -232,9 +235,9 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !installModal.hidden) closeInstallModal();
 });
 
-async function copyCommand(commandSelector) {
+async function copyCommand(commandSelector, statusSelector = "#copyStatus") {
   const command = $(commandSelector).textContent.trim();
-  const status = $("#copyStatus");
+  const status = $(statusSelector);
 
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -264,3 +267,18 @@ $("#copyInstallBtn").addEventListener("click", () => copyCommand("#installComman
 $("#copyReinstallBtn").addEventListener("click", () => copyCommand("#reinstallCommand"));
 $("#copyDiagnoseBtn").addEventListener("click", () => copyCommand("#diagnoseCommand"));
 $("#copyUninstallBtn").addEventListener("click", () => copyCommand("#uninstallCommand"));
+
+$("#generateTokenBtn").addEventListener("click", () => {
+  try {
+    const token = createHealthToken();
+    const element = $("#generatedToken");
+    element.textContent = token;
+    element.classList.add("token-value");
+    $("#copyTokenBtn").disabled = false;
+    $("#tokenStatus").textContent = "สร้าง token แล้ว อย่าลืมตั้งเป็น secret ก่อนติดตั้ง agent";
+  } catch (error) {
+    $("#tokenStatus").textContent = `สร้าง token ไม่สำเร็จ: ${error.message}`;
+  }
+});
+$("#copyTokenBtn").addEventListener("click", () => copyCommand("#generatedToken", "#tokenStatus"));
+$("#copySetTokenBtn").addEventListener("click", () => copyCommand("#setTokenCommand", "#tokenStatus"));

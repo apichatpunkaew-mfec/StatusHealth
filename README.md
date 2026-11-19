@@ -77,6 +77,16 @@ send-health.bat
 
 ### ติดตั้งจากหน้าเว็บ (แนะนำ)
 
+### สร้าง HEALTH_TOKEN จากหน้าเว็บ
+
+กดปุ่ม **สร้าง Token** มุมขวาบน → กด **สุ่ม Token ใหม่** แล้วกด **คัดลอก Token** token จะถูกสุ่มด้วย `crypto.getRandomValues` ใน browser และมีรูปแบบ `ph_...` จากนั้นรันคำสั่งด้านล่างบนเครื่องที่ login Wrangler ไว้ แล้ววาง token เมื่อระบบถาม:
+
+```bash
+npx wrangler secret put HEALTH_TOKEN
+```
+
+dashboard ไม่มีระบบ login จึง**ไม่มี endpoint ที่เขียน secret แทนคุณ** และไม่เก็บ token ไว้ใน KV อัตโนมัติ ถ้าสร้าง token ใหม่ทุกเครื่องที่ติดตั้งอยู่ต้องรัน installer ใหม่ด้วย `-Force` และใส่ token ใหม่ ส่วน secret เก่าจะยังใช้งานได้จนกว่าคุณจะตั้งค่า secret ใหม่ 또는ลบออก
+
 เปิด dashboard แล้วกดปุ่ม **ติดตั้ง Agent** มุมขวาบน กด **คัดลอกคำสั่ง** แล้ววางใน PowerShell ที่เปิดแบบ **Run as Administrator** กด Enter:
 
 ```powershell
