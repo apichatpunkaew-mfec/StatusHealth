@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>PC Health Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>PC Health Dashboard</h1>
+            <p>Health check จาก Windows PC ผ่าน Cloudflare Workers</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <span id="connection" class="connection">กำลังเชื่อมต่อ…</span>
+          <button id="refreshBtn" class="btn" type="button">รีเฟรชตอนนี้</button>
+        </div>
+      </header>
+
+      <section class="summary" aria-label="ภาพรวม">
+        <article class="card">
+          <span class="card-label">เครื่องทั้งหมด</span>
+          <strong id="count-total" class="card-value">0</strong>
+          <span class="card-foot">ลงทะเบียนใน KV</span>
+        </article>
+        <article class="card card--ok">
+          <span class="card-label">ปกติ</span>
+          <strong id="count-ok" class="card-value">0</strong>
+          <span class="card-foot">ทำงานตามปกติ</span>
+        </article>
+        <article class="card card--warning">
+          <span class="card-label">เฝ้าระวัง</span>
+          <strong id="count-warning" class="card-value">0</strong>
+          <span class="card-foot">ใกล้เกณฑ์กำหนด</span>
+        </article>
+        <article class="card card--critical">
+          <span class="card-label">วิกฤต</span>
+          <strong id="count-critical" class="card-value">0</strong>
+          <span class="card-foot">ต้องจัดการด่วน</span>
+        </article>
+        <article class="card card--offline">
+          <span class="card-label">ออฟไลน์</span>
+          <strong id="count-offline" class="card-value">0</strong>
+          <span class="card-foot">ไม่ส่งสัญญาณ</span>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>สถานะเครื่อง</h2>
+            <p id="lastUpdated" class="muted">ยังไม่มีข้อมูล</p>
+          </div>
+          <div class="controls">
+            <label class="search">
+              <span class="sr-only">ค้นหา</span>
+              <input id="search" type="search" placeholder="ค้นหา hostname / IP / OS" autocomplete="off" />
+            </label>
+            <div id="filter" class="segmented" role="group" aria-label="กรองตามสถานะ">
+              <button type="button" data-status="all" class="active">ทั้งหมด</button>
+              <button type="button" data-status="ok">ปกติ</button>
+              <button type="button" data-status="warning">เฝ้าระวัง</button>
+              <button type="button" data-status="critical">วิกฤต</button>
+              <button type="button" data-status="offline">ออฟไลน์</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="banner" class="banner" role="alert" hidden></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>เครื่อง</th>
+                <th>สถานะ</th>
+                <th>CPU</th>
+                <th>Memory</th>
+                <th>Disk</th>
+                <th>อัปเดตล่าสุด</th>
+                <th>แนวโน้ม</th>
+              </tr>
+            </thead>
+            <tbody id="deviceRows">
+              <tr><td colspan="7" class="empty">กำลังโหลดข้อมูล…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>Auto refresh ทุก 10 วินาที</span>
+        <span><code>GET /api/devices</code> · <code>POST /api/health</code></span>
+      </footer>
+    </div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
