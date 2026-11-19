@@ -42,7 +42,6 @@ async function init() {
       $("#loginTitle").textContent = "สร้างผู้ดูแลระบบ";
       $("#loginIntro").textContent = "ยังไม่มีผู้ใช้ กรอก username และรหัสผ่านเพื่อสร้าง admin คนแรก";
       $("#loginSubmit").textContent = "สร้างผู้ดูแลระบบ";
-      $("#setupDisplayNameRow").hidden = false;
       $("#loginPassword").autocomplete = "new-password";
     }
   } catch (error) {
@@ -62,10 +61,6 @@ async function submit(event) {
     username: $("#loginUsername").value.trim(),
     password: $("#loginPassword").value,
   };
-  if (!state.hasUsers) {
-    payload.displayName = $("#setupDisplayName").value.trim();
-  }
-
   try {
     const response = await fetch(state.hasUsers ? "/api/auth/login" : "/api/auth/setup", {
       method: "POST",
