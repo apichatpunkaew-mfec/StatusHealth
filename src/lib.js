@@ -200,8 +200,10 @@ export function appendHistory(history, sample, limit = 30) {
 }
 
 export function buildDeviceRecord(payload, existing = null, { now = new Date(), historyLimit = 30 } = {}) {
+  const receivedAt = now.toISOString();
   const sample = {
     at: payload.timestamp,
+    receivedAt,
     status: payload.status,
     cpuPct: payload.metrics.cpuPct,
     memUsedPct: payload.metrics.memUsedPct,
@@ -218,10 +220,30 @@ export function buildDeviceRecord(payload, existing = null, { now = new Date(), 
     message: payload.message || "",
     reasons: payload.reasons || [],
     metrics: payload.metrics,
-    lastSeen: payload.timestamp,
-    receivedAt: now.toISOString(),
+    lastSeen: receivedAt,
+    receivedAt,
     history: appendHistory(existing?.history, sample, historyLimit),
   };
+}
+
+export function inferHeartbeatIntervalSeconds(history, fallback = 10) {
+  const times = (Array.isArray(history) ? history : [])
+    .map((item) => Date.parse(item?.receivedAt ?? item?.at ?? ""))
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right);
+
+  const gaps = [];
+  for (let index = 1; index < times.length; index += 1) {
+    const seconds = (times[index] - times[index - 1]) / 1000;
+    if (seconds >= 1 && seconds <= 3600) gaps.push(seconds);
+  }
+  if (gaps.length === 0) return fallback;
+
+  gaps.sort((left, right) => left - right);
+  const middle = Math.floor(gaps.length / 2);
+  const median =
+    gaps.length % 2 === 0 ? (gaps[middle - 1] + gaps[middle]) / 2 : gaps[middle];
+  return Math.min(3600, Math.max(2, Math.floor(median)));
 }
 
 export function withLiveness(device, now = new Date(), staleAfterSeconds = 300) {
@@ -229,12 +251,27 @@ export function withLiveness(device, now = new Date(), staleAfterSeconds = 300) 
   const ageSeconds = Number.isFinite(seenAt)
     ? Math.max(0, Math.floor((now.getTime() - seenAt) / 1000))
     : null;
-  const stale = ageSeconds === null || ageSeconds > staleAfterSeconds;
+  const heartbeatIntervalSeconds = inferHeartbeatIntervalSeconds(device?.history);
+  const maxStaleSeconds = Math.min(86_400, Math.max(30, Number(staleAfterSeconds) || 300));
+  const offlineAfterSeconds = Math.min(
+    maxStaleSeconds,
+    Math.max(30, heartbeatIntervalSeconds * 3),
+  );
+  const stale = ageSeconds === null || ageSeconds >= offlineAfterSeconds;
+
   return {
     ...device,
     status: stale ? "offline" : device?.status,
     stale,
     ageSeconds,
+    heartbeatIntervalSeconds,
+    offlineAfterSeconds,
+    reasons: stale ? [] : device?.reasons ?? [],
+    message: stale
+      ? ageSeconds === null
+        ? "ไม่ทราบเวลาที่ได้รับข้อมูลจาก agent"
+        : `ไม่ได้รับข้อมูลจาก agent นาน ${ageSeconds} วินาที (คาดว่าส่งทุก ~${heartbeatIntervalSeconds} วินาที)`
+      : device?.message ?? "",
   };
 }
 

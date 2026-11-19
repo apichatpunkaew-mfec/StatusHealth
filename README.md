@@ -13,7 +13,7 @@ Browser     <--------------------  GET /api/devices  <-- Worker + Dashboard
 - ตารางแสดง CPU, RAM, Disk แต่ไดรฟ์, Uptime, ข้อความเตือน และ sparkline ย้อนหลัง 20 ครั้ง
 - Auto refresh ทุก 10 วินาที ค้นหาและกรองสถานะได้
 - กำหนดสถานะอัตโนมัติจากค่าที่ส่งมา (และฝั่ง server คำนวณซ้ำ ไม่เชื่อ status ที่ agent ส่งเพียงอย่างเดียว)
-- Mark เครื่องเป็น `offline` อัตโนมัติถ้าไม่ส่งข้อมูลภายใน `STALE_AFTER_SECONDS` (ค่าเริ่มต้น 300 วินาที)
+- Mark เครื่องเป็น `offline` อัตโนมัติหลังพลาด heartbeat 3 รอบ (heartbeat ปกติทุก 10 วินาที → ออฟไลน์ใน ~30 วินาที) โดยใช้เวลาที่ **server ได้รับ** เป็นหลัก ไม่ใช่นาฬิกาของ agent `STALE_AFTER_SECONDS` เป็นเพดานสูงสุดสำหรับ agent ที่ตั้งความถี่ช้า
 - หน้า `/login` + เมนู **จัดการผู้ใช้** สำหรับสร้าง/เปิด-ปิด/ลบผู้ใช้ มี 2 สิทธิ์คือ `admin` และ `viewer`
 
 ## Login และผู้ใช้
@@ -146,7 +146,7 @@ $bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bo
 Get-Service PCHealthAgent
 ```
 
-ควรขึ้น error ว่าไม่พบ service ฝั่ง dashboard เครื่องจะเปลี่ยนเป็น `offline` ภายใน ~5 นาที
+ควรขึ้น error ว่าไม่พบ service ฝั่ง dashboard เครื่องจะเปลี่ยนเป็น `offline` ภายใน ~30 วินาที (3 รอบ heartbeat)
 
 ### ติดตั้งแบบ copy โฟลเดอร์เอง
 
@@ -288,6 +288,8 @@ Response สำเร็จ:
   "devices": []
 }
 ```
+
+แต่ละ device มี `lastSeen` (เวลาที่ server ได้รับ heartbeat ล่าสุด), `heartbeatIntervalSeconds` (ความถี่ที่สังเกตได้), `offlineAfterSeconds` (cutoff ที่ใช้จริง) และ `stale` ถ้าเกิน cutoff ระบบจะเปลี่ยน `status` เป็น `offline` และแทนที่ข้อความเก่าด้วยเหตุผลที่อ่านได้ทันที
 
 ### `GET /api/ping`
 
