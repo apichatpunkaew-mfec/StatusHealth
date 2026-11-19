@@ -19,9 +19,12 @@
         </div>
         <div class="header-actions">
           <span id="connection" class="connection">กำลังเชื่อมต่อ…</span>
+          <span id="userLabel" class="user-chip">กำลังโหลดผู้ใช้…</span>
+          <button id="usersBtn" class="btn" type="button" hidden>จัดการผู้ใช้</button>
           <button id="tokenBtn" class="btn" type="button">สร้าง Token</button>
           <button id="installBtn" class="btn btn--primary" type="button">ติดตั้ง Agent</button>
           <button id="refreshBtn" class="btn" type="button">รีเฟรชตอนนี้</button>
+          <button id="logoutBtn" class="btn" type="button">ออกจากระบบ</button>
         </div>
       </header>
 
@@ -95,6 +98,47 @@
           </table>
         </div>
       </section>
+
+      <div id="usersModal" class="modal" hidden>
+        <div class="modal-backdrop" data-close-users></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="usersTitle">
+          <div class="modal-head">
+            <div>
+              <h2 id="usersTitle">จัดการผู้ใช้</h2>
+              <p class="muted">สร้างบัญชีสำหรับเข้าสู่ระบบ dashboard</p>
+            </div>
+            <button id="closeUsersBtn" class="icon-btn" type="button" aria-label="ปิด">✕</button>
+          </div>
+
+          <div class="install-body">
+            <form id="createUserForm" class="user-form">
+              <label class="field">
+                <span>Username</span>
+                <input id="newUsername" autocomplete="off" placeholder="เช่น admin01" required />
+              </label>
+              <label class="field">
+                <span>ชื่อที่แสดง</span>
+                <input id="newDisplayName" autocomplete="off" placeholder="ไม่บังคับ" />
+              </label>
+              <label class="field">
+                <span>สิทธิ์</span>
+                <select id="newRole">
+                  <option value="viewer">viewer ดูข้อมูลอย่างเดียว</option>
+                  <option value="admin">admin จัดการผู้ใช้ได้</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>รหัสผ่าน</span>
+                <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required />
+              </label>
+              <button id="createUserBtn" class="btn btn--primary" type="submit">สร้างผู้ใช้</button>
+            </form>
+
+            <p id="usersStatus" class="form-status" role="status" aria-live="polite"></p>
+            <div id="usersList" class="users-list">กำลังโหลดผู้ใช้…</div>
+          </div>
+        </div>
+      </div>
 
       <div id="installModal" class="modal" hidden>
         <div class="modal-backdrop" data-close-install></div>

@@ -9,6 +9,32 @@ import {
   summarize,
   withLiveness,
 } from "./lib.js";
+import {
+  AuthError,
+  clearSessionCookie,
+  createSession,
+  deleteSession,
+  deleteSessionsForUser,
+  deleteUser,
+  findUserByUsername,
+  getSession,
+  getUser,
+  getUserIndex,
+  hashPassword,
+  isAdmin,
+  normalizeDisplayName,
+  normalizeRole,
+  normalizeUsername,
+  parseCookies,
+  publicUser,
+  putUser,
+  putUserIndex,
+  serializeSessionCookie,
+  validatePassword,
+  verifyPassword,
+  SESSION_COOKIE,
+  SESSION_TTL_SECONDS,
+} from "./auth.js";
 
 const MAX_BODY_BYTES = 32 * 1024;
 const SECURITY_HEADERS = {
@@ -179,12 +205,96 @@ async function serveBootstrap(env, method) {
   return new Response(upstream.body, { status: 200, headers });
 }
 
+function getSetupKey(env) {
+  return String(env.AUTH_SETUP_KEY || env.HEALTH_TOKEN || "").trim();
+}
+
+async function authContext(request, env) {
+  if (!env.HEALTH_KV) return { user: null, token: null, session: null };
+  const token = parseCookies(request.headers.get("Cookie"))[SESSION_COOKIE];
+  const session = await getSession(env.HEALTH_KV, token);
+  if (!session) return { user: null, token: null, session: null };
+  const user = session.user && typeof session.user === "object"
+    ? session.user
+    : await getUser(env.HEALTH_KV, session.userId);
+  if (!user || user.disabled) return { user: null, token, session: null };
+  return { user, token, session };
+}
+
+async function requireAuth(request, env, { admin = false } = {}) {
+  const context = await authContext(request, env);
+  if (!context.user) return { ...context, response: failure(401, "LOGIN_REQUIRED") };
+  if (admin && !isAdmin(context.user)) return { ...context, response: failure(403, "FORBIDDEN") };
+  return { ...context, response: null };
+}
+
+function redirectTo(pathname, headers = {}) {
+  return new Response(null, {
+    status: 302,
+    headers: applyHeaders(new Headers(), { Location: pathname, ...headers }),
+  });
+}
+
+function attachSession(response, session, url) {
+  response.headers.append(
+    "Set-Cookie",
+    serializeSessionCookie(session.token, { secure: url.protocol === "https:" }),
+  );
+  return response;
+}
+
+async function readJsonBody(request) {
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+    throw new AuthError("ข้อมูลใหญ่เกินไป");
+  }
+  const text = await request.text();
+  if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) {
+    throw new AuthError("ข้อมูลใหญ่เกินไป");
+  }
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new AuthError("JSON ไม่ถูกต้อง");
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new AuthError("body ต้องเป็น object");
+  }
+  return value;
+}
+
+async function buildUserRecord(body, { role = "viewer", actor = null } = {}) {
+  const username = normalizeUsername(body.username);
+  const password = validatePassword(body.password);
+  const record = {
+    id: crypto.randomUUID(),
+    username,
+    displayName: normalizeDisplayName(body.displayName, username),
+    role: normalizeRole(role),
+    disabled: false,
+    createdAt: new Date().toISOString(),
+    createdBy: actor?.id ?? "setup",
+    ...(await hashPassword(password)),
+  };
+  return record;
+}
+
+async function saveNewUser(kv, record) {
+  const index = await getUserIndex(kv);
+  if (index.some((item) => item?.username === record.username)) {
+    throw new AuthError("username นี้มีอยู่แล้ว");
+  }
+  await putUser(kv, record);
+  await putUserIndex(kv, [...index, publicUser(record)]);
+}
+
 function serveAsset(request, env) {
   if (!env.ASSETS) return failure(500, "ASSETS_BINDING_MISSING");
   return env.ASSETS.fetch(request).then((response) => {
     const headers = applyHeaders(new Headers(response.headers));
     const pathname = new URL(request.url).pathname;
-    if (pathname === "/" || pathname === "/index.html") {
+    if (["/", "/index.html", "/login", "/login.html"].includes(pathname)) {
       headers.set("Cache-Control", "no-cache");
     }
     return new Response(response.body, {
@@ -193,6 +303,131 @@ function serveAsset(request, env) {
       headers,
     });
   });
+}
+
+async function handleAuthRoute(url, request, env) {
+  if (!env.HEALTH_KV) return failure(500, "KV_BINDING_MISSING");
+  const kv = env.HEALTH_KV;
+  const path = url.pathname;
+
+  try {
+    if (path === "/api/auth/status" && request.method === "GET") {
+      const index = await getUserIndex(kv);
+      const context = await authContext(request, env);
+      return json({
+        ok: true,
+        hasUsers: index.length > 0,
+        needsSetupKey: Boolean(getSetupKey(env)),
+        authenticated: Boolean(context.user),
+        user: publicUser(context.user),
+      });
+    }
+
+    if (path === "/api/auth/setup" && request.method === "POST") {
+      const index = await getUserIndex(kv);
+      if (index.length > 0) return failure(409, "SETUP_CLOSED");
+      const body = await readJsonBody(request);
+      const setupKey = getSetupKey(env);
+      if (setupKey && !constantTimeEqual(String(body.setupKey ?? ""), setupKey)) {
+        return failure(401, "INVALID_SETUP_KEY");
+      }
+      const record = await buildUserRecord(body, { role: "admin" });
+      await saveNewUser(kv, record);
+      const session = await createSession(kv, record);
+      return attachSession(json({ ok: true, user: publicUser(record) }, 201), session, url);
+    }
+
+    if (path === "/api/auth/login" && request.method === "POST") {
+      const body = await readJsonBody(request);
+      const username = normalizeUsername(body.username);
+      const user = await findUserByUsername(kv, username);
+      if (!user || user.disabled || !(await verifyPassword(body.password, user))) {
+        return failure(401, "INVALID_CREDENTIALS");
+      }
+      const session = await createSession(kv, user);
+      return attachSession(json({ ok: true, user: publicUser(user) }), session, url);
+    }
+
+    if (path === "/api/auth/logout" && request.method === "POST") {
+      const context = await authContext(request, env);
+      if (context.token) await deleteSession(kv, context.token);
+      const response = json({ ok: true });
+      response.headers.append("Set-Cookie", clearSessionCookie({ secure: url.protocol === "https:" }));
+      return response;
+    }
+
+    if (path === "/api/auth/me" && request.method === "GET") {
+      const context = await authContext(request, env);
+      if (!context.user) return failure(401, "LOGIN_REQUIRED");
+      return json({ ok: true, user: publicUser(context.user) });
+    }
+
+    if (path === "/api/auth/users") {
+      const auth = await requireAuth(request, env, { admin: true });
+      if (auth.response) return auth.response;
+
+      if (request.method === "GET") {
+        const index = await getUserIndex(kv);
+        return json({ ok: true, users: index.map((item) => publicUser(item)) });
+      }
+
+      if (request.method === "POST") {
+        const body = await readJsonBody(request);
+        const record = await buildUserRecord(body, { role: body.role ?? "viewer", actor: auth.user });
+        await saveNewUser(kv, record);
+        return json({ ok: true, user: publicUser(record) }, 201);
+      }
+
+      return failure(405, "METHOD_NOT_ALLOWED", { Allow: "GET, POST" });
+    }
+
+    const userMatch = /^\/api\/auth\/users\/([^/]+)$/.exec(path);
+    if (userMatch) {
+      const auth = await requireAuth(request, env, { admin: true });
+      if (auth.response) return auth.response;
+
+      const userId = decodeURIComponent(userMatch[1]);
+      const target = await getUser(kv, userId);
+      if (!target) return failure(404, "USER_NOT_FOUND");
+      const index = await getUserIndex(kv);
+
+      if (request.method === "PATCH") {
+        const body = await readJsonBody(request);
+        if (typeof body.disabled !== "boolean") throw new AuthError("disabled ต้องเป็น true หรือ false");
+        const activeAdmins = index.filter((item) => item?.role === "admin" && !item.disabled).length;
+        if (body.disabled && target.id === auth.user.id) throw new AuthError("ไม่สามารถปิดการใช้งานตัวเองได้");
+        if (body.disabled && target.role === "admin" && activeAdmins <= 1) {
+          throw new AuthError("ต้องมี admin ที่เปิดใช้งานอย่างน้อย 1 คน");
+        }
+
+        const updated = { ...target, disabled: body.disabled, updatedAt: new Date().toISOString() };
+        await putUser(kv, updated);
+        await putUserIndex(kv, index.map((item) => (item?.id === updated.id ? publicUser(updated) : item)));
+        if (body.disabled) await deleteSessionsForUser(kv, updated.id);
+        return json({ ok: true, user: publicUser(updated) });
+      }
+
+      if (request.method === "DELETE") {
+        const activeAdmins = index.filter((item) => item?.role === "admin" && !item.disabled).length;
+        if (target.id === auth.user.id) throw new AuthError("ไม่สามารถลบตัวเองได้");
+        if (target.role === "admin" && activeAdmins <= 1) {
+          throw new AuthError("ต้องมี admin ที่เปิดใช้งานอย่างน้อย 1 คน");
+        }
+
+        await deleteUser(kv, target.id);
+        await putUserIndex(kv, index.filter((item) => item?.id !== target.id));
+        await deleteSessionsForUser(kv, target.id);
+        return json({ ok: true });
+      }
+
+      return failure(405, "METHOD_NOT_ALLOWED", { Allow: "PATCH, DELETE" });
+    }
+
+    return failure(404, "NOT_FOUND");
+  } catch (error) {
+    if (error instanceof AuthError) return failure(400, "INVALID_INPUT", { detail: error.message });
+    throw error;
+  }
 }
 
 export default {
@@ -220,9 +455,15 @@ export default {
         return await handleHealthPost(request, env, config);
       }
 
+      if (url.pathname.startsWith("/api/auth/")) {
+        return await handleAuthRoute(url, request, env);
+      }
+
       if (url.pathname === "/api/devices") {
         if (request.method !== "GET") return failure(405, "METHOD_NOT_ALLOWED", { Allow: "GET" });
         if (!env.HEALTH_KV) return failure(500, "KV_BINDING_MISSING");
+        const auth = await requireAuth(request, env);
+        if (auth.response) return auth.response;
         const devices = await listDevices(env, config);
         return json({
           ok: true,
@@ -241,6 +482,25 @@ export default {
       }
 
       if (url.pathname.startsWith("/api/")) return failure(404, "NOT_FOUND");
+
+      if (url.pathname === "/" || url.pathname === "/index.html") {
+        const auth = await authContext(request, env);
+        if (!auth.user) {
+          return redirectTo(`/login?next=${encodeURIComponent(url.pathname + url.search)}`);
+        }
+      }
+
+      if (url.pathname === "/login" || url.pathname === "/login.html") {
+        const auth = await authContext(request, env);
+        if (auth.user) return redirectTo("/");
+        if (url.pathname === "/login") {
+          const assetRequest = new Request(new URL("/login.html", request.url), {
+            method: "GET",
+            headers: request.headers,
+          });
+          return await serveAsset(assetRequest, env);
+        }
+      }
 
       return await serveAsset(request, env);
     } catch (error) {

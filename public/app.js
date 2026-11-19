@@ -7,7 +7,7 @@ const STATUS_META = {
   offline: { label: "ออฟไลน์", className: "offline" },
 };
 
-const state = { devices: [], summary: null, filter: "all", query: "" };
+const state = { devices: [], summary: null, filter: "all", query: "", user: null };
 const $ = (selector) => document.querySelector(selector);
 
 function escapeHtml(value) {
@@ -170,6 +170,10 @@ async function load() {
 
   try {
     const response = await fetch("/api/devices", { cache: "no-store" });
+    if (response.status === 401) {
+      location.replace(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
+      return;
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 
@@ -210,10 +214,159 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) load();
 });
 
-setInterval(load, 10_000);
-load();
+initAuth().then((ok) => {
+  if (ok) load();
+});
+setInterval(() => {
+  if (state.user) load();
+}, 10_000);
+
+const usersModal = $("#usersModal");
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
+  });
+  if (response.status === 401) {
+    location.replace(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
+    throw new Error("SESSION_EXPIRED");
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail ?? data.error ?? `HTTP ${response.status}`);
+  return data;
+}
+
+function renderUser() {
+  const user = state.user;
+  $("#userLabel").textContent = user ? `${user.displayName} · ${user.role}` : "ไม่ได้เข้าสู่ระบบ";
+  $("#usersBtn").hidden = user?.role !== "admin";
+}
+
+async function initAuth() {
+  try {
+    const data = await apiRequest("/api/auth/me");
+    state.user = data.user;
+    renderUser();
+    return true;
+  } catch (error) {
+    if (error.message !== "SESSION_EXPIRED") {
+      setConnection("offline", "ตรวจสอบสิทธิ์ไม่สำเร็จ");
+    }
+    return false;
+  }
+}
+
+async function logout() {
+  try {
+    await apiRequest("/api/auth/logout", { method: "POST" });
+  } catch {
+    // session หมดอายุแล้วก็ให้ไปหน้า login เหมือนกัน
+  }
+  location.replace("/login");
+}
+
+function setUsersStatus(text, isError = false) {
+  const element = $("#usersStatus");
+  element.textContent = text;
+  element.classList.toggle("is-error", isError);
+}
+
+function userRow(user) {
+  const roleLabel = user.role === "admin" ? "admin" : "viewer";
+  const isSelf = user.id === state.user?.id;
+  const actions = isSelf
+    ? '<span class="muted">บัญชีของคุณ</span>'
+    : `<button class="icon-btn" type="button" data-user-action="toggle" data-user-id="${escapeHtml(user.id)}" data-disabled="${user.disabled ? "true" : "false"}">${user.disabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}</button>
+       <button class="icon-btn danger-link" type="button" data-user-action="delete" data-user-id="${escapeHtml(user.id)}">ลบ</button>`;
+  return `<div class="user-row">
+    <div>
+      <strong>${escapeHtml(user.displayName || user.username)}</strong>
+      <div class="device-meta">@${escapeHtml(user.username)} · ${escapeHtml(formatDateTime(user.createdAt))}</div>
+    </div>
+    <span class="role-badge role-${roleLabel}">${roleLabel}</span>
+    ${user.disabled ? '<span class="role-badge role-off">ปิดใช้งาน</span>' : ""}
+    <div class="user-actions">${actions}</div>
+  </div>`;
+}
+
+async function loadUsers() {
+  const data = await apiRequest("/api/auth/users");
+  $("#usersList").innerHTML = data.users.length
+    ? data.users.map(userRow).join("")
+    : '<p class="muted">ยังไม่มีผู้ใช้ในระบบ</p>';
+}
+
+function openUsersModal() {
+  usersModal.hidden = false;
+  setUsersStatus("");
+  loadUsers().catch((error) => setUsersStatus(error.message, true));
+  $("#newUsername").focus();
+}
+
+function closeUsersModal() {
+  usersModal.hidden = true;
+  $("#usersBtn").focus();
+}
 
 const installModal = $("#installModal");
+
+$("#usersBtn").addEventListener("click", openUsersModal);
+$("#logoutBtn").addEventListener("click", logout);
+$("#closeUsersBtn").addEventListener("click", closeUsersModal);
+usersModal.addEventListener("click", (event) => {
+  if (event.target.matches("[data-close-users]")) closeUsersModal();
+});
+
+$("#createUserForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("#createUserBtn");
+  button.disabled = true;
+  setUsersStatus("");
+  try {
+    await apiRequest("/api/auth/users", {
+      method: "POST",
+      body: JSON.stringify({
+        username: $("#newUsername").value.trim(),
+        displayName: $("#newDisplayName").value.trim(),
+        role: $("#newRole").value,
+        password: $("#newPassword").value,
+      }),
+    });
+    $("#createUserForm").reset();
+    setUsersStatus("สร้างผู้ใช้แล้ว");
+    await loadUsers();
+  } catch (error) {
+    setUsersStatus(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("#usersList").addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-user-action]");
+  if (!button) return;
+  const { userAction, userId, disabled } = button.dataset;
+  if (userAction === "delete" && !window.confirm("ลบผู้ใช้นี้หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้")) return;
+
+  button.disabled = true;
+  setUsersStatus("");
+  try {
+    const path = `/api/auth/users/${encodeURIComponent(userId)}`;
+    if (userAction === "toggle") {
+      await apiRequest(path, {
+        method: "PATCH",
+        body: JSON.stringify({ disabled: disabled !== "true" }),
+      });
+    } else if (userAction === "delete") {
+      await apiRequest(path, { method: "DELETE" });
+    }
+    setUsersStatus("บันทึกแล้ว");
+    await loadUsers();
+  } catch (error) {
+    setUsersStatus(error.message, true);
+  }
+});
 
 function openInstallModal(focusSelector = "#copyInstallBtn") {
   installModal.hidden = false;
@@ -232,7 +385,9 @@ installModal.addEventListener("click", (event) => {
   if (event.target.matches("[data-close-install]")) closeInstallModal();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !installModal.hidden) closeInstallModal();
+  if (event.key !== "Escape") return;
+  if (!usersModal.hidden) closeUsersModal();
+  else if (!installModal.hidden) closeInstallModal();
 });
 
 async function copyCommand(commandSelector, statusSelector = "#copyStatus") {

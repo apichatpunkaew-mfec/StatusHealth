@@ -14,6 +14,18 @@ Browser     <--------------------  GET /api/devices  <-- Worker + Dashboard
 - Auto refresh ทุก 10 วินาที ค้นหาและกรองสถานะได้
 - กำหนดสถานะอัตโนมัติจากค่าที่ส่งมา (และฝั่ง server คำนวณซ้ำ ไม่เชื่อ status ที่ agent ส่งเพียงอย่างเดียว)
 - Mark เครื่องเป็น `offline` อัตโนมัติถ้าไม่ส่งข้อมูลภายใน `STALE_AFTER_SECONDS` (ค่าเริ่มต้น 300 วินาที)
+- หน้า `/login` + เมนู **จัดการผู้ใช้** สำหรับสร้าง/เปิด-ปิด/ลบผู้ใช้ มี 2 สิทธิ์คือ `admin` และ `viewer`
+
+## Login และผู้ใช้
+
+- ครั้งแรกให้เปิด `https://<worker-domain>/login` ระบบจะขึ้นฟอร์ม **สร้างผู้ดูแลระบบ**
+- ใส่ setup key เพื่อสร้าง admin คนแรก ค่าเริ่มต้นคือ secret `HEALTH_TOKEN` (หรือ `AUTH_SETUP_KEY` ถ้าตั้งแยกไว้) วิธีตั้ง secret ทำใน Cloudflare Dashboard ไม่ต้อง login Wrangler CLI
+- หลังจากมีผู้ใช้แล้ว ฟอร์มสร้าง admin จะปิด automatically ทุกคนต้อง login ด้วย username/รหัสผ่าน
+- admin จะเห็นปุ่ม **จัดการผู้ใช้** มุมขวาบน สามารถสร้าง user ใหม่ เลือกสิทธิ์ `viewer` (ดูอย่างเดียว) หรือ `admin` (จัดการผู้ใช้ได้) รวมถึงเปิด/ปิดและลบผู้ใช้
+- session เก็บใน KV เป็น token สุ่ม และส่งกลับเป็น cookie แบบ `HttpOnly` + `Secure` + `SameSite=Lax` อายุ 8 ชั่วโมง
+- รหัสผ่านไม่ได้เก็บ plain text แต่เก็บเป็น PBKDF2-SHA256 hash พร้อม salt ใน KV
+
+> ถ้าต้องการแยก setup key ออกจาก agent token ให้ตั้ง secret `AUTH_SETUP_KEY` ใน Cloudflare Dashboard เพิ่มได้ ถ้าไม่ตั้ง ระบบจะใช้ `HEALTH_TOKEN` แทน
 
 ## เกณฑ์การให้สถานะ
 

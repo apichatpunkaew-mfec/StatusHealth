@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Login · PC Health Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="login-page">
+    <main class="login-shell">
+      <section class="login-card" aria-labelledby="loginTitle">
+        <div class="brand login-brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>PC Health Dashboard</h1>
+            <p id="loginSubtitle" class="muted">เข้าสู่ระบบเพื่อดูสถานะเครื่อง</p>
+          </div>
+        </div>
+
+        <h2 id="loginTitle" class="login-title">เข้าสู่ระบบ</h2>
+        <p id="loginIntro" class="muted">ใช้ username และรหัสผ่านที่ผู้ดูแลระบบสร้างให้</p>
+
+        <form id="loginForm" class="login-form">
+          <label class="field">
+            <span>Username</span>
+            <input id="loginUsername" name="username" autocomplete="username" required autofocus />
+          </label>
+
+          <label class="field">
+            <span>รหัสผ่าน</span>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" minlength="8" required />
+          </label>
+
+          <label id="setupDisplayNameRow" class="field" hidden>
+            <span>ชื่อที่แสดง</span>
+            <input id="setupDisplayName" name="displayName" autocomplete="name" />
+          </label>
+
+          <label id="setupKeyRow" class="field" hidden>
+            <span>Setup key</span>
+            <input id="setupKey" name="setupKey" type="password" autocomplete="off" />
+            <small class="muted">ค่าเริ่มต้นคือ HEALTH_TOKEN หรือ AUTH_SETUP_KEY ที่ตั้งไว้</small>
+          </label>
+
+          <button id="loginSubmit" class="btn btn--primary" type="submit">เข้าสู่ระบบ</button>
+        </form>
+
+        <p id="loginStatus" class="form-status" role="status" aria-live="polite"></p>
+        <p class="login-foot muted">
+          หน้า login ใช้ session cookie แบบ HttpOnly · รหัสผ่านถูกเก็บเป็น hash ด้วย PBKDF2 ใน KV
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="/login.js"></script>
+  </body>
+</html>
