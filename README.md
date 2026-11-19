@@ -31,18 +31,30 @@ Browser     <--------------------  GET /api/devices  <-- Worker + Dashboard
 npm install
 npx wrangler login
 
-# สร้าง KV namespace แล้ว copy id ไปใส่ใน wrangler.toml
-npx wrangler kv namespace create HEALTH_KV
-
 # ตั้ง token ที่ใช้ยืนยันตัวตน agent (อย่า commit ค่านี้)
 npx wrangler secret put HEALTH_TOKEN
+
+# ตรวจสอบ/สร้าง KV แล้วเขียน id ลง wrangler.toml อัตโนมัติ
+npm run setup:kv
 
 # ทดสอบ bundle ก่อน deploy
 npm run check
 
-# deploy
+# deploy (setup:kv จะรันอีกครั้งโดยอัตโนมัติผ่าน predeploy)
 npm run deploy
 ```
+
+`npm run setup:kv` จะ reuse namespace `HEALTH_KV` ที่มีอยู่แล้ว ถ้าไม่มีจะสร้างใหม่แล้วอัปเดต `wrangler.toml` ให้เอง ไม่ต้อง copy id เองอีกต่อไป
+
+### Deploy อัตโนมัติด้วย GitHub Actions
+
+เพิ่ม repository secrets ต่อไปนี้ แล้วทุก push ไป `main` จะตรวจ/สร้าง KV และ deploy ให้เอง:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `HEALTH_TOKEN`
+
+ workflow อยู่ที่ `.github/workflows/deploy.yml`
 
 Wrangler จะพิมพ์ URL ให้หลัง deploy (ในโปรเจกต์นี้คือ `https://pc-health-dashboard.apichat-p-1989.workers.dev`) agent จะอ่าน endpoint/token จาก `windows/agent.config.json` ซึ่งถูก gitignore อยู่
 

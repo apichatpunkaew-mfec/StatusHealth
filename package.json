@@ -6,6 +6,8 @@
   "description": "Cloudflare Worker dashboard for Windows PC health checks",
   "scripts": {
     "dev": "wrangler dev",
+    "setup:kv": "node scripts/setup-kv.mjs",
+    "predeploy": "npm run setup:kv",
     "deploy": "wrangler deploy",
     "test": "node --test",
     "check": "wrangler deploy --dry-run"
