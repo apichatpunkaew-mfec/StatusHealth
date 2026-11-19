@@ -44,43 +44,81 @@ npm run check
 npm run deploy
 ```
 
-Wrangler จะพิมพ์ URL แบบ `https://pc-health-dashboard.<your-subdomain>.workers.dev` ให้หลัง deploy ให้ copy ไปใส่ใน `windows/send-health.bat` ดังนี้:
+Wrangler จะพิมพ์ URL ให้หลัง deploy (ในโปรเจกต์นี้คือ `https://pc-health-dashboard.apichat-p-1989.workers.dev`) agent จะอ่าน endpoint/token จาก `windows/agent.config.json` ซึ่งถูก gitignore อยู่
 
-```bat
-set "HEALTH_ENDPOINT=https://pc-health-dashboard.<your-subdomain>.workers.dev/api/health"
-set "HEALTH_TOKEN=<token ที่ตั้งด้วย wrangler secret>"
+token ที่ใช้คือค่าที่ตั้งด้วย:
+
+```bash
+npx wrangler secret put HEALTH_TOKEN
 ```
 
-หรือจะ set environment variable ก็ได้ เช่น
+installer จะถาม token จากคุณแล้วเขียนลง config ให้โดยไม่โชว์บนหน้าจอ และจำกัด ACL ให้เฉพาะ user คนนั้นอ่านได้
+
+ถ้าต้องการรันแบบครั้งเดียวด้วย `send-health.bat` ให้แก้ token ในไฟล์นั้นเอง หรือ set environment variable:
 
 ```bat
-set HEALTH_ENDPOINT=https://...
-set HEALTH_TOKEN=...
+set HEALTH_TOKEN=<token ที่ตั้งด้วย wrangler secret>
 send-health.bat
 ```
 
-## รันบน Windows
+## รันบน Windows แบบ real-time
 
 1. copy โฟลเดอร์ `windows/` ไปยังเครื่อง เช่น `C:\HealthCheck\`
-2. แก้ `send-health.bat` ตามหัวข้อก่อนหน้า
-3. ทดสอบด้วยการ double-click `send-health.bat` ต้องเห็นข้อความ `OK id=... status=...`
-4. เปิด dashboard ดูสถานะ
+2. เปิด PowerShell (ไม่ต้องเป็น admin) แล้วรัน installer:
 
-ให้รันทุก 5 นาทีด้วย Task Scheduler:
-
-```bat
-schtasks /Create /TN "PC Health Check" /TR "\"C:\HealthCheck\send-health.bat\"" /SC MINUTE /MO 5 /F
+```powershell
+cd C:\HealthCheck
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-agent.ps1
 ```
 
-หรือเปิด Task Scheduler แล้วสร้าง Basic Task ชี้ไปที่ `send-health.bat` เองก็ได้
+installer จะถาม `HEALTH_TOKEN` จาก Cloudflare secret, เขียน `agent.config.json`, สร้าง Scheduled Task ชื่อ `PC Health Dashboard Agent` แล้ว start ทันที task จะรันซ้ำตอน logon แบบ hidden และ restart เองถ้า agent crash
 
-### เปลี่ยนชื่อที่แสดง / device id
+3. ดู log แบบ real-time:
 
-```bat
-send-health.bat -DisplayName "PC-ACCOUNTING-01" -DeviceId "pc-acct-01"
+```powershell
+Get-Content C:\HealthCheck\agent.log -Wait
 ```
 
-ถ้าไม่ระบุ ระบบจะใช้ UUID ของ主板 (หรือ `MachineGuid`) เป็น id และ `$env:COMPUTERNAME` เป็นชื่อ
+4. เปิด dashboard `https://pc-health-dashboard.apichat-p-1989.workers.dev` จะเห็นเครื่องปรากฏภายใน ~10 วินาที
+
+### รัน foreground / ทดสอบครั้งเดียว
+
+```bat
+run-agent.bat
+send-health.bat
+```
+
+`run-agent.bat` รัน loop ในหน้าต่างปัจจุบัน (กด Ctrl+C เพื่อหยุด)  
+`send-health.bat` ส่งครั้งเดียว เหมาะสำหรับทดสอบหลังแก้ token
+
+### ปรับแต่ง
+
+```powershell
+# เปลี่ยนชื่อที่แสดง / device id ตอนติดตั้ง
+.\install-agent.ps1 -Force -DisplayName "PC-ACCOUNTING-01" -DeviceId "pc-acct-01"
+
+# เปลี่ยนความถี่เป็น 5 วินาที
+.\install-agent.ps1 -Force -IntervalSeconds 5
+
+# หยุดและลบ agent ออก
+.\install-agent.ps1 -Uninstall
+```
+
+ค่าเริ่มต้นคือทุก 10 วินาที (ต่ำสุด 2 วินาที) ถ้าไม่ระบุ `deviceId` ระบบจะใช้ UUID ของเมนบอร์ด (หรือ `MachineGuid`) เป็น id และ `$env:COMPUTERNAME` เป็นชื่อ
+
+### ไฟล์ในโฟลเดอร์ `windows/`
+
+| ไฟล์ | หน้าที่ |
+| --- | --- |
+| `install-agent.ps1` | ตั้งค่า + ติดตั้ง Scheduled Task |
+| `agent.ps1` | loop ส่งข้อมูลต่อเนื่อง |
+| `health-lib.ps1` | ฟังก์ชันเก็บ metrics / ส่งข้อมูล |
+| `run-agent.bat` | รัน agent แบบ foreground |
+| `send-health.bat` | ส่งครั้งเดียว |
+| `collect-and-send.ps1` | ตัวเก็บข้อมูลครั้งเดียวที่ `send-health.bat` เรียก |
+| `agent.config.example.json` | ตัวอย่าง config |
+| `agent.config.json` | config จริง (gitignored, มี token) |
+| `agent.log` | log การทำงาน (gitignored) |
 
 ## พัฒนาในเครื่อง
 

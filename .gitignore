@@ -4,3 +4,5 @@ node_modules/
 dist/
 coverage/
 *.log
+windows/agent.config.json
+windows/agent.old.log

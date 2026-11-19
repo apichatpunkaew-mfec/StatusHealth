@@ -1,0 +1,7 @@
+{
+  "endpoint": "https://pc-health-dashboard.apichat-p-1989.workers.dev/api/health",
+  "token": "CHANGE_ME",
+  "intervalSeconds": 10,
+  "displayName": "",
+  "deviceId": ""
+}
