@@ -101,16 +101,16 @@
           <div class="modal-head">
             <div>
               <h2 id="installTitle">ติดตั้ง Agent บน Windows</h2>
-              <p class="muted">คัดลอกคำสั่งด้านล่างไปวางใน PowerShell แล้วกด Enter</p>
+              <p class="muted">คัดลอกคำสั่งด้านล่างไปวางใน PowerShell (Run as Administrator) แล้วกด Enter</p>
             </div>
             <button id="closeInstallBtn" class="icon-btn" type="button" aria-label="ปิด">✕</button>
           </div>
 
           <div class="install-body">
             <ol class="steps">
-              <li>เปิด PowerShell บนเครื่อง Windows ที่ต้องการตรวจสอบ</li>
+              <li>เปิด PowerShell แบบ <strong>Run as Administrator</strong> บนเครื่อง Windows ที่ต้องการตรวจสอบ</li>
               <li>วางคำสั่งด้านล่างแล้วกด Enter</li>
-              <li>ใส่ <code>HEALTH_TOKEN</code> เมื่อระบบถาม แล้วรอไม่กี่วินาที</li>
+              <li>ใส่ <code>HEALTH_TOKEN</code> เมื่อระบบถาม ระบบจะสร้าง Windows Service ชื่อ <code>PCHealthAgent</code> และเริ่มส่งทันที</li>
             </ol>
 
             <div class="code-block">
@@ -131,14 +131,27 @@
               <button id="copyDiagnoseBtn" class="btn" type="button">คัดลอกคำสั่งตรวจสอบ</button>
             </div>
 
+            <p class="muted command-label">ถอนการติดตั้ง: ลบ Windows Service, Scheduled Task เก่า และไฟล์ agent ทั้งหมด</p>
+            <div class="code-block">
+              <code id="uninstallCommand">$bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1; &amp; ([scriptblock]::Create($bootstrap)) -Uninstall -RemoveFiles</code>
+              <button id="copyUninstallBtn" class="btn btn--danger" type="button">คัดลอกคำสั่งถอนการติดตั้ง</button>
+            </div>
+            <ol class="steps compact">
+              <li>เปิด PowerShell แบบ <strong>Run as Administrator</strong> บนเครื่องที่ต้องการถอนการติดตั้ง</li>
+              <li>วางคำสั่งข้างบนแล้วกด Enter</li>
+              <li>ตรวจสอบด้วย <code>Get-Service PCHealthAgent</code> ควรขึ้นว่าไม่พบ service</li>
+              <li>Refresh dashboard เครื่องจะเปลี่ยนเป็น offline ภายในประมาณ 5 นาที</li>
+            </ol>
+
             <div class="download-row">
               <a class="btn" href="/agent/bootstrap.ps1" download="bootstrap.ps1">ดาวน์โหลด bootstrap.ps1</a>
               <a class="btn" href="https://github.com/apichatpunkaew-mfec/StatusHealth/archive/refs/heads/main.zip" download>ดาวน์โหลดทั้งโปรเจกต์ (ZIP)</a>
             </div>
 
             <p class="install-note">
-              คำสั่งจะโหลดไฟล์ agent ไปยัง <code>%LOCALAPPDATA%\PCHealthAgent</code> สร้าง Scheduled Task
-              และเริ่มส่งข้อมูลทุก 10 วินาทีโดยอัตโนมัติ <strong>ไม่มีการฝัง token ไว้ในหน้าเว็บนี้</strong>
+              คำสั่งจะโหลดไฟล์ agent ไปยัง <code>%LOCALAPPDATA%\PCHealthAgent</code> สร้าง Windows Service ชื่อ <code>PCHealthAgent</code>
+              ที่ start อัตโนมัติตอน boot และ restart เองถ้า agent ตาย เริ่มส่งข้อมูลทุก 10 วินาที
+              <strong>ไม่มีการฝัง token ไว้ในหน้าเว็บนี้</strong>
             </p>
           </div>
         </div>

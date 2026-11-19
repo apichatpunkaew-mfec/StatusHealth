@@ -263,3 +263,4 @@ async function copyCommand(commandSelector) {
 $("#copyInstallBtn").addEventListener("click", () => copyCommand("#installCommand"));
 $("#copyReinstallBtn").addEventListener("click", () => copyCommand("#reinstallCommand"));
 $("#copyDiagnoseBtn").addEventListener("click", () => copyCommand("#diagnoseCommand"));
+$("#copyUninstallBtn").addEventListener("click", () => copyCommand("#uninstallCommand"));

@@ -5,13 +5,23 @@ param(
   [string]$DisplayName = "",
   [string]$DeviceId = "",
   [string]$TaskName = "PC Health Dashboard Agent",
+  [string]$ServiceName = "PCHealthAgent",
+  [string]$ServiceDisplayName = "PC Health Dashboard Agent",
   [string]$BaseUrl = "https://raw.githubusercontent.com/apichatpunkaew-mfec/StatusHealth/main/windows",
   [switch]$Force,
-  [switch]$NoStart
+  [switch]$NoStart,
+  [switch]$SkipVerify,
+  [switch]$Uninstall,
+  [switch]$RemoveFiles
 )
 
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+$adminPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $adminPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  throw "Administrator privileges are required. Right-click PowerShell and choose Run as Administrator."
+}
 
 $files = @(
   "health-lib.ps1",
@@ -21,10 +31,15 @@ $files = @(
   "send-health.bat",
   "run-agent.bat",
   "agent.config.example.json",
-  "diagnose.ps1"
+  "diagnose.ps1",
+  "PCHealthAgent.Service.cs"
 )
 
-Write-Host "Installing PC Health Agent"
+if ($Uninstall) {
+  Write-Host "Uninstalling PC Health Agent"
+} else {
+  Write-Host "Installing PC Health Agent"
+}
 Write-Host "  folder  : $InstallDir"
 Write-Host "  endpoint: $Endpoint"
 Write-Host ""
@@ -52,13 +67,18 @@ $procArgs = @(
   "-ConfigPath", $config,
   "-Endpoint", $Endpoint,
   "-IntervalSeconds", "$IntervalSeconds",
-  "-TaskName", $TaskName
+  "-TaskName", $TaskName,
+  "-ServiceName", $ServiceName,
+  "-ServiceDisplayName", $ServiceDisplayName
 )
 
 if (-not [string]::IsNullOrWhiteSpace($DisplayName)) { $procArgs += @("-DisplayName", $DisplayName) }
 if (-not [string]::IsNullOrWhiteSpace($DeviceId)) { $procArgs += @("-DeviceId", $DeviceId) }
 if ($Force) { $procArgs += "-Force" }
 if ($NoStart) { $procArgs += "-NoStart" }
+if ($SkipVerify) { $procArgs += "-SkipVerify" }
+if ($Uninstall) { $procArgs += "-Uninstall" }
+if ($RemoveFiles) { $procArgs += "-RemoveFiles" }
 
 Write-Host ""
 & powershell.exe @procArgs

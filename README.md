@@ -77,13 +77,13 @@ send-health.bat
 
 ### ติดตั้งจากหน้าเว็บ (แนะนำ)
 
-เปิด dashboard แล้วกดปุ่ม **ติดตั้ง Agent** มุมขวาบน กด **คัดลอกคำสั่ง** แล้ววางใน PowerShell กด Enter:
+เปิด dashboard แล้วกดปุ่ม **ติดตั้ง Agent** มุมขวาบน กด **คัดลอกคำสั่ง** แล้ววางใน PowerShell ที่เปิดแบบ **Run as Administrator** กด Enter:
 
 ```powershell
 irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1 | iex
 ```
 
-คำสั่งนี้โหลดไฟล์ agent จาก GitHub ไปยัง `%LOCALAPPDATA%\PCHealthAgent` แล้วเรียก installer ให้เอง (ยังถาม `HEALTH_TOKEN` เหมือนเดิม) installer จะ **ส่งข้อมูลจริง 1 ครั้งทันทีเพื่อตรวจ token** ก่อนสร้างScheduled Task หาก token ผิดหรือ network ไม่ได้จะแจ้ง error ทันที ในหน้าเว็บยังมีปุ่มดาวน์โหลด `bootstrap.ps1` และ ZIP ของโปรเจกต์ให้ด้วย
+คำสั่งนี้โหลดไฟล์ agent จาก GitHub ไปยัง `%LOCALAPPDATA%\PCHealthAgent` แล้วเรียก installer ให้เอง (ยังถาม `HEALTH_TOKEN` เหมือนเดิม) installer จะ **ส่งข้อมูลจริง 1 ครั้งทันทีเพื่อตรวจ token** ก่อนสร้าง Windows Service ชื่อ `PCHealthAgent` หาก token ผิดหรือ network ไม่ได้จะแจ้ง error ทันที ตัว service เป็น `.exe` ที่ compile จาก `PCHealthAgent.Service.cs` ด้วย `.NET Framework 4.x` ที่มีอยู่ใน Windows ไม่ต้องติดตั้ง tool เพิ่ม จะ start อัตโนมัติตอน boot และ restart agent เองถ้า process ตาย ในหน้าเว็บยังมีปุ่มดาวน์โหลด `bootstrap.ps1` และ ZIP ของโปรเจกต์ให้ด้วย
 
 หากเคยติดตั้งแล้วแต่ dashboard ยังไม่ขึ้นเครื่อง ให้ใช้คำสั่งติดตั้งใหม่ (force) จากหน้าเว็บ หรือรันเอง:
 
@@ -97,19 +97,41 @@ $bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bo
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\PCHealthAgent\diagnose.ps1"
 ```
 
-คำสั่ง `diagnose.ps1` จะแสดงสถานะ Scheduled Task, ค่าที่ตั้งไว้ (ปิดบัง token), log ล่าสุด และทดสอบส่งข้อมูล 1 ครั้งโดยไม่เปิดเผย token
+คำสั่ง `diagnose.ps1` จะแสดงสถานะ Windows Service, legacy Scheduled Task, ค่าที่ตั้งไว้ (ปิดบัง token), `agent.log`, `service.log` และทดสอบส่งข้อมูล 1 ครั้งโดยไม่เปิดเผย token
+
+### ถอนการติดตั้ง
+
+จากหน้าเว็บกด **ติดตั้ง Agent** แล้วกด **คัดลอกคำสั่งถอนการติดตั้ง** หรือรันเองใน PowerShell ที่เปิดแบบ **Run as Administrator**:
+
+```powershell
+$bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1; & ([scriptblock]::Create($bootstrap)) -Uninstall -RemoveFiles
+```
+
+คำสั่งนี้จะหยุดและลบ service `PCHealthAgent`, ลบ legacy Scheduled Task `PC Health Dashboard Agent` ถ้ายังมีอยู่ และลบไฟล์ทั้งหมดใน `%LOCALAPPDATA%\PCHealthAgent` ถ้าต้องการเก็บ config/log ไว้ ให้去掉 `-RemoveFiles`:
+
+```powershell
+$bootstrap = irm https://pc-health-dashboard.apichat-p-1989.workers.dev/agent/bootstrap.ps1; & ([scriptblock]::Create($bootstrap)) -Uninstall
+```
+
+ตรวจผลด้วย:
+
+```powershell
+Get-Service PCHealthAgent
+```
+
+ควรขึ้น error ว่าไม่พบ service ฝั่ง dashboard เครื่องจะเปลี่ยนเป็น `offline` ภายใน ~5 นาที
 
 ### ติดตั้งแบบ copy โฟลเดอร์เอง
 
 1. copy โฟลเดอร์ `windows/` ไปยังเครื่อง เช่น `C:\HealthCheck\`
-2. เปิด PowerShell (ไม่ต้องเป็น admin) แล้วรัน installer:
+2. เปิด PowerShell แบบ **Run as Administrator** แล้วรัน installer:
 
 ```powershell
 cd C:\HealthCheck
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-agent.ps1
 ```
 
-installer จะถาม `HEALTH_TOKEN` จาก Cloudflare secret, เขียน `agent.config.json`, สร้าง Scheduled Task ชื่อ `PC Health Dashboard Agent` แล้ว start ทันที task จะรันซ้ำตอน logon แบบ hidden และ restart เองถ้า agent crash
+installer จะถาม `HEALTH_TOKEN` จาก Cloudflare secret, เขียน `agent.config.json`, compile `PCHealthAgent.Service.exe` แล้วสร้าง Windows Service ชื่อ `PCHealthAgent` (display name `PC Health Dashboard Agent`) start ทันที, start อัตโนมัติตอน boot และ restart agent เองถ้า process ตาย legacy Scheduled Task ชื่อเดิมจะถูกลบออกให้ด้วย
 
 3. ดู log แบบ real-time:
 
@@ -138,8 +160,11 @@ send-health.bat
 # เปลี่ยนความถี่เป็น 5 วินาที
 .\install-agent.ps1 -Force -IntervalSeconds 5
 
-# หยุดและลบ agent ออก
+# หยุดและลบ service ออก แต่เก็บ config/log ไว้
 .\install-agent.ps1 -Uninstall
+
+# หยุด ลบ service และลบไฟล์ทั้งหมดในโฟลเดอร์ agent
+.\install-agent.ps1 -Uninstall -RemoveFiles
 ```
 
 ค่าเริ่มต้นคือทุก 10 วินาที (ต่ำสุด 2 วินาที) ถ้าไม่ระบุ `deviceId` ระบบจะใช้ UUID ของเมนบอร์ด (หรือ `MachineGuid`) เป็น id และ `$env:COMPUTERNAME` เป็นชื่อ
@@ -148,15 +173,19 @@ send-health.bat
 
 | ไฟล์ | หน้าที่ |
 | --- | --- |
-| `install-agent.ps1` | ตั้งค่า + ติดตั้ง Scheduled Task |
+| `install-agent.ps1` | ตั้งค่า, compile service, ติดตั้ง/ถอนการติดตั้ง Windows Service |
+| `PCHealthAgent.Service.cs` | โค้ด C# สำหรับ Windows Service wrapper |
 | `agent.ps1` | loop ส่งข้อมูลต่อเนื่อง |
 | `health-lib.ps1` | ฟังก์ชันเก็บ metrics / ส่งข้อมูล |
+| `diagnose.ps1` | ตรวจ service/config/log และทดสอบส่ง 1 ครั้ง |
 | `run-agent.bat` | รัน agent แบบ foreground |
 | `send-health.bat` | ส่งครั้งเดียว |
 | `collect-and-send.ps1` | ตัวเก็บข้อมูลครั้งเดียวที่ `send-health.bat` เรียก |
 | `agent.config.example.json` | ตัวอย่าง config |
 | `agent.config.json` | config จริง (gitignored, มี token) |
-| `agent.log` | log การทำงาน (gitignored) |
+| `agent.log` | log การทำงานของ agent (gitignored) |
+| `service.log` | log การ start/stop/restart ของ service (gitignored) |
+| `PCHealthAgent.Service.exe` | service ที่ compile แล้ว (gitignored) |
 
 ## พัฒนาในเครื่อง
 

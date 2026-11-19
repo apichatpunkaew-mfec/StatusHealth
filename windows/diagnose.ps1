@@ -1,6 +1,7 @@
 param(
   [string]$ConfigPath = (Join-Path $PSScriptRoot "agent.config.json"),
-  [string]$TaskName = "PC Health Dashboard Agent"
+  [string]$TaskName = "PC Health Dashboard Agent",
+  [string]$ServiceName = "PCHealthAgent"
 )
 
 . (Join-Path $PSScriptRoot "health-lib.ps1")
@@ -25,22 +26,36 @@ function Get-Prop {
 
 Show-Heading "Agent files"
 Write-Host "Folder: $folder"
-foreach ($file in @("health-lib.ps1", "agent.ps1", "install-agent.ps1", "agent.config.json")) {
+foreach ($file in @("health-lib.ps1", "agent.ps1", "install-agent.ps1", "PCHealthAgent.Service.cs", "PCHealthAgent.Service.exe", "agent.config.json")) {
   Write-Host ("{0}: {1}" -f $file, (Test-Path (Join-Path $folder $file)))
 }
 
-Show-Heading "Scheduled task"
+Show-Heading "Windows service"
 try {
-  $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
-  $info = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue
-  Write-Host ("State: {0}" -f $task.State)
-  Write-Host ("LastRunTime: {0}" -f $info.LastRunTime)
-  Write-Host ("LastTaskResult: {0}" -f $info.LastTaskResult)
-  foreach ($action in $task.Actions) {
-    Write-Host ("Action: {0} {1}" -f $action.Execute, $action.Arguments)
+  $service = Get-Service -Name $ServiceName -ErrorAction Stop
+  $wmi = Get-CimInstance Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
+  Write-Host ("Name: {0}" -f $service.Name)
+  Write-Host ("DisplayName: {0}" -f $service.DisplayName)
+  Write-Host ("Status: {0}" -f $service.Status)
+  Write-Host ("StartMode: {0}" -f $wmi.StartMode)
+  Write-Host ("PathName: {0}" -f $wmi.PathName)
+} catch {
+  Write-Host ("Service check failed: {0}" -f $_.Exception.Message)
+}
+
+Show-Heading "Legacy scheduled task"
+try {
+  $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+  if ($null -eq $task) {
+    Write-Host "Not found (this is fine after upgrading to service)"
+  } else {
+    $info = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue
+    Write-Host ("State: {0}" -f $task.State)
+    Write-Host ("LastRunTime: {0}" -f $info.LastRunTime)
+    Write-Host ("LastTaskResult: {0}" -f $info.LastTaskResult)
   }
 } catch {
-  Write-Host ("Task check failed: {0}" -f $_.Exception.Message)
+  Write-Host ("Legacy task check failed: {0}" -f $_.Exception.Message)
 }
 
 Show-Heading "Config (token is masked)"
@@ -74,6 +89,14 @@ if (Test-Path $logPath) {
   Get-Content -Path $logPath -Tail 30
 } else {
   Write-Host "No log file yet."
+}
+
+Show-Heading "service.log (last 20 lines)"
+$serviceLog = Join-Path $folder "service.log"
+if (Test-Path $serviceLog) {
+  Get-Content -Path $serviceLog -Tail 20
+} else {
+  Write-Host "No service log yet."
 }
 
 Show-Heading "Test send"

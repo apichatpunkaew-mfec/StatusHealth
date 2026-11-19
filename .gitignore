@@ -6,3 +6,4 @@ coverage/
 *.log
 windows/agent.config.json
 windows/agent.old.log
+windows/PCHealthAgent.Service.exe
